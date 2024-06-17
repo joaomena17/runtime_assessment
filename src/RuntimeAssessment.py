@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
+import importlib
 import os
 import rospy
 import rosnode
+import rostopic
 import logging
 from utils import *
 from RuntimeAssessmentConfig import RuntimeAssessmentConfig
@@ -55,6 +57,23 @@ class RuntimeAssessment:
 
         self.logger.info(" ------------ RUNTIME ASSESSMENT ------------ ")
     
+
+    def import_message_types(self, topics: List[str]) -> None:
+        """
+        Import the message types from the topics.
+        :param topics: List[str]
+        """
+        for topic_name in topics:
+            topic_type, _, _ = rostopic.get_topic_class(topic_name)
+            if topic_type is None:
+                raise ValueError(f"Topic '{topic_name}' not found or not yet published.")
+            else:
+                module_name = topic_type.__module__  # Get the module name from the class
+                try:
+                    importlib.import_module(module_name)
+                except ImportError as e:
+                    raise ImportError(f"Error importing module {module_name}: {e}")
+
 
     def run(self) -> None:
         """
@@ -145,7 +164,3 @@ class RuntimeAssessment:
         :return: float
         """
         return rospy.get_time() - self.start_time
-
-
-    
-    

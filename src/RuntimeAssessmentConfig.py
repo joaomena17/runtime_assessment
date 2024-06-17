@@ -6,7 +6,7 @@ class RuntimeAssessmentConfig:
     """
     Class to load the configuration file for the runtime assessment.
     """
-    def __init__(self, config_path: str = "/home/joaomena/catkin_ws/src/runtime_assessment/src/config"):
+    def __init__(self, config_path: str = "/home/joaomena/catkin_ws/src/runtime_assessment/src/specifications.yaml"):
         self.config_path = config_path
         self.config = self.parse_yaml_config(self.config_path)
         self.target_node = self.parse_target_node()
@@ -28,7 +28,7 @@ class RuntimeAssessmentConfig:
                 raise ValueError(f"Missing required key '{key}' in configuration")
         
         for spec in config['specifications']:
-            required_spec_keys = ['name', 'type', 'params']
+            required_spec_keys = ['name', 'params']
             for key in required_spec_keys:
                 if key not in spec:
                     raise ValueError(f"Missing required key '{key}' in specification '{spec.get('name', '')}'")
@@ -55,6 +55,7 @@ class RuntimeAssessmentConfig:
 
         except FileNotFoundError:
             raise ValueError(f"Configuration file not found: {yaml_file}")
+        
         except Exception as e:
             raise e
 
@@ -73,3 +74,12 @@ class RuntimeAssessmentConfig:
         :return: List[str]
         """
         return [t["topic"] for t in self.config["setup"]["topics"]]
+    
+
+    def parse_specifications(self):
+        """
+        Parse the specifications.
+        :return: dict
+        """
+        for spec in self.config["specifications"]:
+            yield spec
