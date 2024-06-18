@@ -16,16 +16,20 @@ class AssessmentObject:
         self.node = runtime_assessment.node
         self.rate = runtime_assessment.rate
         self.logger = runtime_assessment.logger
+        self.latest_event = Tuple()
         self.subscribers = []
         self.specifications = []
         
 
-    def global_event_callback(self, data: GlobalEvents) -> None:
+    def global_event_callback(self, event: Tuple) -> None:
         """
         Callback for the global events subscriber.
         :param data: GlobalEvents
         :return: None
         """
+        # map the event to the data
+        data = event[1]
+
         if data == GlobalEvents.NODE_ADDED:
             self.start_assessment()
 
@@ -209,7 +213,11 @@ class AssessmentObject:
         Run the assessment.
         :return: None
         """
-        self.global_events_monitor = rospy.Subscriber('global_events', GlobalEvents, self.handle_sub, queue_size=10)
+
+        # check for new events
+        if self.latest_event != self.runtime_assessment.global_event_queue[-1]:
+            self.latest_event = self.runtime_assessment.global_event_queue[-1]
+            self.global_event_callback(self.latest_event)
 
         while not rospy.is_shutdown():
             self.rate.sleep()

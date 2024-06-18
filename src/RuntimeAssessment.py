@@ -26,7 +26,8 @@ class RuntimeAssessment:
         self.rate = rospy.Rate(10)
         self.is_paused = False
         self.is_running = False
-        self.event_pub = rospy.Publisher('global_events', GlobalEvents, queue_size=10)
+        self.global_event_queue = []
+
 
         # Logger setup
         self.logger = logging.getLogger(f"RuntimeAssessment.{self.target_node}")
@@ -75,6 +76,18 @@ class RuntimeAssessment:
                     raise ImportError(f"Error importing module {module_name}: {e}")
 
 
+    def publish_global_event(self, event: GlobalEvents) -> None:
+        """
+        Publish a global event.
+        :param event: GlobalEvents
+        """
+        self.global_event_queue.append((datetime.now(), event))
+
+        # keep the queue size zat maximum 10 events
+        if len(self.global_event_queue) > 10:
+            self.global_event_queue.pop(0)
+
+
     def run(self) -> None:
         """
         Run the assessment.
@@ -87,17 +100,17 @@ class RuntimeAssessment:
                 if self.is_paused:
                     if not target_running:
                         self.logger.info("Target node removed. Finishing assessment...")
-                        self.global_event_pub.publish(GlobalEvents.NODE_REMOVED)
+                        self.publish_global_event(GlobalEvents.NODE_REMOVED)
                         self.end_assessment()
                     else:
                         self.logger.info("Assessment paused.")
-                        self.global_event_pub.publish(GlobalEvents.ASSESSMENT_PAUSED)
+                        self.publish_global_event(GlobalEvents.ASSESSMENT_PAUSED)
                         rospy.sleep(1.0)
 
                 else:
                     if not target_running:
                         self.logger.info("Target node removed. Finishing assessment...")
-                        self.global_event_pub.publish(GlobalEvents.NODE_REMOVED)
+                        self.publish_global_event(GlobalEvents.NODE_REMOVED)
                         self.end_assessment()
                     else:
                         self.rate.sleep()   
@@ -105,7 +118,7 @@ class RuntimeAssessment:
             else:
                 if target_running:
                     self.logger.info("Target node started. Initializing assessment...")
-                    self.global_event_pub.publish(GlobalEvents.NODE_ADDED)
+                    self.publish_global_event(GlobalEvents.NODE_ADDED)
                     self.start_assessment()
                 else:
                     self.rate.sleep()
@@ -129,7 +142,7 @@ class RuntimeAssessment:
         if self.is_paused:
             self.is_paused = False
             self.is_running = True
-            self.global_event_pub.publish(GlobalEvents.ASSESSMENT_RESUMED)
+            self.publish_global_event(GlobalEvents.ASSESSMENT_RESUMED)
             self.logger.info("Assessment resumed.")
 
 
