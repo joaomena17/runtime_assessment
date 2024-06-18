@@ -52,20 +52,5 @@ class TurtleSquare:
         self.pub.publish(self.direction)
 
 
-    def move_square(self, speed=1, length=1):
-        print("Starting position: ", self.pose.x, self.pose.y)
-        for _ in range(4):
-            self.move_forward(speed=speed, distance=length)
-            print("Position after side", _ + 1, ":", self.pose.x, self.pose.y)
-            self.rotate_half_pi()
-            print("Position after rotation", _ + 1, ":", self.pose.x, self.pose.y)
-
-
-if __name__ == '__main__':
-    try:
-        turtle_square = TurtleSquare()
-        turtle_square.move_square(speed=1, length=5)
-
-    except rospy.ROSInterruptException:
-        print("Interrupting execution...")
-        raise
+    def move(self, speed=1, length=1):
+        pass
