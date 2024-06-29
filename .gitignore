@@ -2,3 +2,4 @@
 *.yaml
 /src/log
 .vscode
+*.pyc
