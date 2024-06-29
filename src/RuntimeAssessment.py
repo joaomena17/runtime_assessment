@@ -19,15 +19,28 @@ class RuntimeAssessment:
     """
     # target_node: str, log_path: str = "/home/joaomena/catkin_ws/src/runtime_assessment/src/log"
     def __init__(self, config: RuntimeAssessmentConfig):
-        # Assessment variables
+        # Initialize node
         self.node = rospy.init_node('runtime_assessment')
+
+        # Declare setup variables
         self.target_node = config.target_node
+        self.topics = config.topics
+        self.rate = config.rate
+        self.logger_path = config.logger_path
+        self.topic_pairs = []
+
+        # Get specifications
+        self.specifications = config.specifications
+
+        # Initialize internal variables
         self.previous_nodes: Set[str] = set()
-        self.rate = rospy.Rate(10)
         self.is_paused = False
         self.is_running = False
         self.global_event_queue = []
 
+        # import message types
+        for topic in self.topics.items():
+            self.topic_pairs.append((topic[0], import_message_type(topic)))
 
         # Logger setup
         self.logger = logging.getLogger(f"RuntimeAssessment.{self.target_node}")
@@ -59,23 +72,6 @@ class RuntimeAssessment:
         self.logger.info(" ------------ RUNTIME ASSESSMENT ------------ ")
     
 
-    def import_message_types(self, topics: List[str]) -> None:
-        """
-        Import the message types from the topics.
-        :param topics: List[str]
-        """
-        for topic_name in topics:
-            topic_type, _, _ = rostopic.get_topic_class(topic_name)
-            if topic_type is None:
-                raise ValueError(f"Topic '{topic_name}' not found or not yet published.")
-            else:
-                module_name = topic_type.__module__  # Get the module name from the class
-                try:
-                    importlib.import_module(module_name)
-                except ImportError as e:
-                    raise ImportError(f"Error importing module {module_name}: {e}")
-
-
     def publish_global_event(self, event: GlobalEvents) -> None:
         """
         Publish a global event.
@@ -83,7 +79,7 @@ class RuntimeAssessment:
         """
         self.global_event_queue.append((datetime.now(), event))
 
-        # keep the queue size zat maximum 10 events
+        # keep the queue size at maximum 10 events
         if len(self.global_event_queue) > 10:
             self.global_event_queue.pop(0)
 

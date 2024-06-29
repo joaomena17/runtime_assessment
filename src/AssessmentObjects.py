@@ -2,6 +2,7 @@
 from typing import Any, List, Tuple, Union
 from turtlesim.msg import Pose
 from geometry_msgs.msg import Twist
+from std_msgs.msg import String
 import rospy
 from GlobalEvents import GlobalEvents
 from utils import ordered_points, unordered_points, get_average_value, frequency_of_events
@@ -103,7 +104,7 @@ class AssessmentObject:
         target.append((self.get_time_elapsed(), data))
 
     
-    def check_points(self, positions: List[Tuple], target: List[Tuple], ordered: bool = False, tolerance: float = 0.05) -> bool:
+    def exists_on_record(self, positions: List[Tuple], target: List[Tuple], ordered: bool = False, tolerance: float = 0.05) -> bool:
         """
         Check if certain points occur in a target record.
         :param positions: List[Tuple]
@@ -297,3 +298,42 @@ class CmdVelAssessment(AssessmentObject):
         self.cmd_vel_record = []
         self.cmd_vel_sub = rospy.Subscriber('turtle1/cmd_vel', Twist, self.handle_sub, queue_size=10)
         self.subscribers.append(self.cmd_vel_sub)
+
+
+
+class StringAssessment(AssessmentObject):
+    """
+    Class to assess the string messages.
+    """
+    def __init__(self):
+        super().__init__()
+        self.curr_string = ""
+        self.string_record = []
+
+    def create_subscribers(self) -> None:
+        self.string_sub = rospy.Subscriber('turtle1/checkpoint', String, self.handle_sub, queue_size=10)
+        self.subscribers.append(self.string_sub)
+
+
+    def handle_sub(self, data: String) -> None:
+        self.save_record(self.string_record, data)
+        self.curr_string = data
+
+
+    def start_assessment(self) -> None:
+        """
+        Start the assessment.
+        :return: None
+        """
+        self.create_subscribers()
+        self.string_record = []
+        self.curr_string = ""
+
+
+    def end_assessment(self) -> None:
+        """
+        End the assessment.
+        :return: None
+        """
+        self.remove_subscribers()
+        self.check_requirements()

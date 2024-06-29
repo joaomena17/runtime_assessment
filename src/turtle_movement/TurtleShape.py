@@ -5,7 +5,7 @@ from geometry_msgs.msg import Twist
 from turtlesim.msg import Pose
 import math
 
-class TurtleSquare:
+class TurtleShape:
     def __init__(self):
         rospy.init_node('snake_game')
         rospy.Subscriber('/turtle1/pose', Pose, self.update_pose)
@@ -29,7 +29,7 @@ class TurtleSquare:
         self.direction.linear.x = 0.0
         self.pub.publish(self.direction)
     
-    def rotate_half_pi(self):
+    def rotate_half_pi(self, speed=0.5):
         target_angle = self.pose.theta + math.pi/2
 
         if target_angle > math.pi:
@@ -39,11 +39,11 @@ class TurtleSquare:
             self.direction.linear.x = 0.0
 
             if abs(target_angle - self.pose.theta) <= 0.05:
-                self.direction.angular.z = 0.05
-            elif abs(target_angle - self.pose.theta) <= 0.05:
-                self.direction.angular.z = 0.1
+                self.direction.angular.z = speed/10
+            elif abs(target_angle - self.pose.theta) <= 0.1:
+                self.direction.angular.z = speed/5
             else:
-                self.direction.angular.z = 0.5
+                self.direction.angular.z = speed
 
             self.pub.publish(self.direction)
             self.rate.sleep()

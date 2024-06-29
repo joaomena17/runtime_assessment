@@ -1,4 +1,5 @@
 import yaml
+from importlib import import_module
 from typing import List, Tuple
 
 
@@ -91,3 +92,25 @@ def get_average_value(record) -> float:
                 total += vel.linear.x
             return total / len(record)
         raise ValueError("No velocity records found.")
+
+
+def import_message_type(topic_tuple):
+    """
+    Import message types from a dictionary of topic names to message types
+    :param topic_types: A tuple mapping topic names to message types
+    :return: Imported class 
+    """
+    topic, msg_type = topic_tuple
+
+    package_name, message_name = msg_type.split('/')
+    package_name = package_name + '.msg'
+
+    try:
+        message_module = import_module(package_name)
+        message_class = getattr(message_module, message_name)
+        return message_class
+    
+    except (AttributeError, ModuleNotFoundError) as e:
+        print(f"Failed to import message type for topic '{topic}': {e}")
+        return None
+        

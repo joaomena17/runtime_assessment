@@ -1,16 +1,15 @@
 import yaml
-from typing import List
+from typing import List, Tuple
 
 
 class RuntimeAssessmentConfig:
     """
     Class to load the configuration file for the runtime assessment.
     """
-    def __init__(self, config_path: str = "/home/joaomena/catkin_ws/src/runtime_assessment/src/specifications.yaml"):
+    def __init__(self, config_path: str = "specifications.yaml"):
         self.config_path = config_path
         self.config = self.parse_yaml_config(self.config_path)
-        self.target_node = self.parse_target_node()
-        self.topics = self.parse_topics()
+        self.parse_setup()
         self.specifications = self.config["specifications"]
 
 
@@ -28,10 +27,10 @@ class RuntimeAssessmentConfig:
                 raise ValueError(f"Missing required key '{key}' in configuration")
         
         for spec in config['specifications']:
-            required_spec_keys = ['name', 'params']
-            for key in required_spec_keys:
-                if key not in spec:
-                    raise ValueError(f"Missing required key '{key}' in specification '{spec.get('name', '')}'")
+            print(spec)
+            valid_spec_keys = ['metric_assessment', 'ros_topic_assessment']
+            if spec not in valid_spec_keys:
+                raise ValueError(f"Key {spec} is not a valid specification declaration.")
 
 
     def parse_yaml_config(self, yaml_file):
@@ -46,11 +45,6 @@ class RuntimeAssessmentConfig:
 
             self.validate_config(config)
 
-            for spec in config['specifications']:
-                for param, value in spec['params'].items():
-                    if value == "~":
-                        spec['params'][param] = None
-
             return config
 
         except FileNotFoundError:
@@ -58,6 +52,35 @@ class RuntimeAssessmentConfig:
         
         except Exception as e:
             raise e
+
+
+    def parse_setup(self) -> None:
+        """
+        Parse the setup parameters.
+        :return: None
+        """
+
+        setup = self.config["setup"]
+
+        if "target_node" not in setup:
+            raise ValueError("Missing 'target_node' in setup")
+        else:
+            self.target_node = setup["target_node"]
+        
+        if "topics" not in setup:
+            self.topics = []
+        else:
+            self.topics = setup["topics"]
+
+        if "rate" not in setup:
+            self.rate = 10
+        else:
+            self.rate = setup["rate"]
+        
+        if "logger_path" not in setup:
+            self.logger_path = "log"
+        else:
+            self.logger_path = setup["logger_path"]
 
 
     def parse_target_node(self) -> str:
@@ -73,7 +96,7 @@ class RuntimeAssessmentConfig:
         Parse the topics.
         :return: List[str]
         """
-        return [t["topic"] for t in self.config["setup"]["topics"]]
+        return self.config["setup"]["topics"]
     
 
     def parse_specifications(self):

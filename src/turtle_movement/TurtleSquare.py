@@ -6,7 +6,7 @@ class TurtleSquare(TurtleShape):
     def __init__(self):
         super().__init__()
 
-    def move_square(self, speed=1, length=1):
+    def move(self, speed=1, length=1):
         print("Starting position: ", self.pose.x, self.pose.y)
         for _ in range(4):
             self.move_forward(speed=speed, distance=length)
