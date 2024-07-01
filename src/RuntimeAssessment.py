@@ -17,7 +17,7 @@ class RuntimeAssessment:
     """
     Class to assess the runtime behavior of a ROS application.
     """
-    # target_node: str, log_path: str = "/home/joaomena/catkin_ws/src/runtime_assessment/src/log"
+
     def __init__(self, config: RuntimeAssessmentConfig):
         # Initialize node
         self.node = rospy.init_node('runtime_assessment')
@@ -28,6 +28,10 @@ class RuntimeAssessment:
         self.rate = config.rate
         self.logger_path = config.logger_path
         self.topic_pairs = {}
+        self.start_time = float()
+        self.execution_time = float()
+        self.total_number_of_messages = 0 # TODO: implement
+
 
         # Get specifications
         self.specifications = config.specifications
@@ -43,7 +47,6 @@ class RuntimeAssessment:
             self.topic_pairs[topic[0]] = import_message_type(topic)
 
         # TODO: initialize assessment objects
-        # maybe return thread pool that can be used by a closing assessment objects function (?)
         self.initialize_assessment_objects()
 
         # Logger setup
@@ -167,7 +170,7 @@ class RuntimeAssessment:
         self.is_paused = False
         self.total_execution_time = self.get_time_elapsed()
         self.logger.info("Assessment ended.")
-        self.logger.info(f"Execution time: {self.total_execution_time} seconds.")
+        self.logger.info(f"Execution time: {self.execution_time} seconds.")
         self.logger.info("----------------- END OF ASSESSMENT -----------------\n")
 
 
