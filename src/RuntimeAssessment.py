@@ -184,8 +184,6 @@ class RuntimeAssessment:
         Initialize the assessment objects.
         """
 
-        # TODO: specs by method -> by topic -> pass list of all specs of a certain topic before initializing object
-
         for spec in self.specifications:
             if spec == "metric_assessment":
                 pass

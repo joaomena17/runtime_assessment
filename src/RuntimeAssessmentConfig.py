@@ -27,7 +27,7 @@ class RuntimeAssessmentConfig:
                 raise ValueError(f"Missing required key '{key}' in configuration")
         
         for spec in config['specifications']:
-            valid_spec_keys = ['metric_assessment', 'ros_topic_assessment']
+            valid_spec_keys = ['global_assessment', 'ros_topic_assessment']
             if [k for k in spec.keys()][0] not in valid_spec_keys:
                 raise ValueError(f"Key {spec} is not a valid specification declaration.")
 
@@ -84,7 +84,7 @@ class RuntimeAssessmentConfig:
 
     def parse_specifications(self) -> dict:
         """
-        Parse the specifications and output the requirements group by type of assessment.
+        Parse the specifications and output the requirements grouped by type of assessment, and for ros_topic assessments, grouped by topic.
         :return: dict
         """
         conf = self.config["specifications"]
@@ -94,10 +94,27 @@ class RuntimeAssessmentConfig:
         for spec in conf:
             key = list(spec.keys())[0]
 
-            if key in requirements.keys():
+            if key == "ros_topic_assessment":
+                if key not in requirements.keys():
+                    requirements[key] = {}
+
+                aux_dict = {}
+
+                topic = spec[key]["topic"]
+
+                if topic not in requirements[key].keys():
+                    requirements[key][topic] = []
+                
+                for field, value in spec[key].items():
+                    if field != "topic":
+                        aux_dict[field] = value
+
+                requirements[key][topic].append(aux_dict)
+            
+            elif key == "global_assessment":
+                if key not in requirements.keys():
+                    requirements[key] = []
                 requirements[key].append(spec[key])
-            else:
-                requirements[key] = [spec[key]]
         
         return requirements
 
