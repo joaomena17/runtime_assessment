@@ -26,10 +26,7 @@ class RuntimeAssessmentConfig:
             if key not in config:
                 raise ValueError(f"Missing required key '{key}' in configuration")
         
-        for spec in config['specifications']:
-            valid_spec_keys = ['global_assessment', 'ros_topic_assessment']
-            if [k for k in spec.keys()][0] not in valid_spec_keys:
-                raise ValueError(f"Key {spec} is not a valid specification declaration.")
+        # TODO: try to make more thorough verification of specifications section
 
 
     def parse_yaml_config(self, yaml_file) -> dict:
@@ -89,32 +86,34 @@ class RuntimeAssessmentConfig:
         """
         conf = self.config["specifications"]
 
-        requirements = {}
+        requirements = {"topic": {}, "metric": {}}
 
         for spec in conf:
-            key = list(spec.keys())[0]
-
-            if key == "ros_topic_assessment":
-                if key not in requirements.keys():
-                    requirements[key] = {}
-
+            if "topic" in spec.keys():
                 aux_dict = {}
+                topic = spec["topic"]
 
-                topic = spec[key]["topic"]
-
-                if topic not in requirements[key].keys():
-                    requirements[key][topic] = []
+                if topic not in requirements["topic"].keys():
+                    requirements["topic"][topic] = []
                 
-                for field, value in spec[key].items():
+                for field, value in spec.items():
                     if field != "topic":
                         aux_dict[field] = value
 
-                requirements[key][topic].append(aux_dict)
+                requirements["topic"][topic].append(aux_dict)
             
-            elif key == "global_assessment":
-                if key not in requirements.keys():
-                    requirements[key] = []
-                requirements[key].append(spec[key])
+            elif "metric" in spec.keys():
+                aux_dict = {}
+                metric = spec["metric"]
+
+                if metric not in requirements["metric"].keys():
+                    requirements["metric"][metric] = []
+
+                for field, value in spec.items():
+                    if field != "topic":
+                        aux_dict[field] = value
+
+                requirements["metric"][metric].append(aux_dict)
         
         return requirements
 

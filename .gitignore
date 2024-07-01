@@ -3,3 +3,4 @@
 /src/log
 .vscode
 *.pyc
+/src/backup.txt

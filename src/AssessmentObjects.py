@@ -13,13 +13,19 @@ class AssessmentObject:
     """
     Class to create an assessment object.
     """
-    def __init__(self, runtime_assessment: RuntimeAssessment, topic: Tuple[str, str]):
+    def __init__(self, runtime_assessment: RuntimeAssessment, topic: Tuple[str, Any], specifications: dict = {}) -> None:
+        # runtime assessment hooks and variables
         self.node = runtime_assessment.node
         self.rate = runtime_assessment.rate
         self.logger = runtime_assessment.logger
-        self.latest_event = Tuple()
-        self.subscribers = []
-        self.specifications = []
+        self.runtime_assessment = runtime_assessment
+
+        # assessment object variables
+        self.latest_global_event = Tuple()
+        self.topic_name, self.message_class = topic
+        self.specifications = specifications
+        self.latest_topic_event = self.message_class()
+        self.topic_event_record = []
         
 
     def global_event_callback(self, event: Tuple) -> None:
@@ -43,30 +49,45 @@ class AssessmentObject:
         elif data == GlobalEvents.NODE_REMOVED:
             self.end_assessment()
 
+        else:
+            self.logger.error(f"Invalid global event received: {data}")
+
 
     def create_subscribers(self) -> None:
         """
         Create the subscribers.
         :return: None
         """
-        pass
+        try:
+            self.sub = rospy.Subscriber(self.topic_name, self.message_class, self.handle_sub, queue_size=10)
+
+        except Exception as e:
+            self.logger.error(e)
 
     
-    def remove_subscribers(self):
+    def remove_subscribers(self) -> None:
         """
         Remove the subscribers.
         :return: None
         """
-        for sub in self.subscribers:
-            sub.unregister()
+        try:
+            self.sub.unregister()
+
+        except Exception as e:
+            self.logger.error(e)
 
 
-    def handle_sub():
+    def handle_sub(self, data) -> None:
         """
         Handle the subscribers.
         :return: None
         """
-        pass
+        if isinstance(data, self.message_class):
+            self.save_record(self.topic_event_record, data)
+            self.latest_topic_event = data
+        
+        else:
+            self.logger.error(f"Invalid message type received: {type(data)}")
 
 
     def start_assessment(self) -> None:
@@ -74,7 +95,7 @@ class AssessmentObject:
         Start the assessment.
         :return: None
         """
-        pass
+        self.create_subscribers()
 
 
     def end_assessment(self) -> None:
@@ -101,8 +122,12 @@ class AssessmentObject:
         :param data: Any
         :return: None
         """
-        target.append((self.get_time_elapsed(), data))
+        try:
+            target.append((self.get_time_elapsed(), data))
 
+        except Exception as e:
+            self.logger.error(e)
+            
     
     def exists_on_record(self, positions: List[Tuple], target: List[Tuple], ordered: bool = False, tolerance: float = 0.05) -> bool:
         """
@@ -151,14 +176,13 @@ class AssessmentObject:
             }
 
             if comp in comparison_dict:
-                print(value, target, comp)
                 return comparison_dict[comp]()
 
             else:
-                raise ValueError("Invalid comparison operator.")
+                self.logger.error("Invalid comparison operator.")
         
         else:
-            raise ValueError("Invalid target.")
+            self.logger.error("Invalid target.")
             
         return False
     
@@ -170,16 +194,6 @@ class AssessmentObject:
         :param requirements: List[Tuple]
         :return: bool
         """
-        # hardcoded requirements for test purposes
-
-        # new test case is a rectangular path with different speeds and distances
-        requirements = {
-            "ordered_path": [(10, 5.5), (10, 10.5), (5, 10.5), (5, 5.5)], # should fail
-            "unordered_path": [(10, 5.5), (5.5, 5.5), (5.5, 10.5), (10, 10.5)], # should fail
-            "average_velocity": (0.1, '>'), # should fail
-            "frequency": (60.0, '='), # should fail
-            "execution_time": [(30, 40)] # should fail
-        }
 
         for req, params in requirements.items():
             if req == "ordered_path":
@@ -204,7 +218,8 @@ class AssessmentObject:
                 self.logger.info(f"Result for execution time verification: {res}")
             
             else:
-                raise ValueError(f"{req} - Invalid requirement.")
+                self.logger.error(f"{req} - Invalid requirement.")
+                return False
         
         return True
     
@@ -216,122 +231,9 @@ class AssessmentObject:
         """
 
         # check for new events
-        if self.latest_event != self.runtime_assessment.global_event_queue[-1]:
-            self.latest_event = self.runtime_assessment.global_event_queue[-1]
-            self.global_event_callback(self.latest_event)
+        if self.latest_global_event != self.runtime_assessment.global_event_queue[-1]:
+            self.latest_global_event = self.runtime_assessment.global_event_queue[-1]
+            self.global_event_callback(self.latest_global_event)
 
         while not rospy.is_shutdown():
             self.rate.sleep()
-        
-    
-
-
-class PoseAssessment(AssessmentObject):
-    """
-    Class to assess the pose of the turtle.
-    """
-    def __init__(self):
-        super().__init__()
-        self.curr_pose = Pose()
-        self.distance = 0
-        self.pose_record = []
-
-
-    def create_subscribers(self) -> None:
-        self.pose_sub = rospy.Subscriber('turtle1/pose', Pose, self.handle_sub, queue_size=10)
-        self.subscribers.append(self.pose_sub)
-
-
-    def handle_sub(self, data: Pose) -> None:
-        self.save_record(self.pose_record, data)
-        self.curr_pose = data
-        self.update_distance_travelled()
-
-
-    def update_distance_travelled(self) -> None:
-        """
-        Update the distance travelled by the turtle.
-        :return: None
-        """
-        if len(self.pose_record) > 1:
-            # unpack the tuples and calculate the distance between the last two poses
-            curr_x, curr_y = self.pose_record[-1][1].x, self.pose_record[-1][1].y
-            prev_x, prev_y = self.pose_record[-2][1].x, self.pose_record[-2][1].y
-            self.distance += ((curr_x - prev_x) ** 2 + (curr_y - prev_y) ** 2) ** 0.5
-
-    
-    def start_assessment(self) -> None:
-        """
-        Start the assessment.
-        :return: None
-        """
-        self.create_subscribers()
-
-
-class CmdVelAssessment(AssessmentObject):
-    """
-    Class to assess the command velocity of the turtle.
-    """
-    def __init__(self):
-        super().__init__()
-        self.curr_vel = Twist()
-        self.cmd_vel_record = []
-
-    def create_subscribers(self) -> None:
-        self.cmd_vel_sub = rospy.Subscriber('turtle1/cmd_vel', Twist, self.handle_sub, queue_size=10)
-        self.subscribers.append(self.cmd_vel_sub)
-
-
-    def handle_sub(self, data: Twist) -> None:
-        self.save_record(self.cmd_vel_record, data)
-        self.curr_vel = data
-
-
-    def start_assessment(self) -> None:
-        """
-        Start the assessment.
-        :return: None
-        """
-        self.start_time = rospy.get_time()
-        self.cmd_vel_record = []
-        self.cmd_vel_sub = rospy.Subscriber('turtle1/cmd_vel', Twist, self.handle_sub, queue_size=10)
-        self.subscribers.append(self.cmd_vel_sub)
-
-
-
-class StringAssessment(AssessmentObject):
-    """
-    Class to assess the string messages.
-    """
-    def __init__(self):
-        super().__init__()
-        self.curr_string = ""
-        self.string_record = []
-
-    def create_subscribers(self) -> None:
-        self.string_sub = rospy.Subscriber('turtle1/checkpoint', String, self.handle_sub, queue_size=10)
-        self.subscribers.append(self.string_sub)
-
-
-    def handle_sub(self, data: String) -> None:
-        self.save_record(self.string_record, data)
-        self.curr_string = data
-
-
-    def start_assessment(self) -> None:
-        """
-        Start the assessment.
-        :return: None
-        """
-        self.create_subscribers()
-        self.string_record = []
-        self.curr_string = ""
-
-
-    def end_assessment(self) -> None:
-        """
-        End the assessment.
-        :return: None
-        """
-        self.remove_subscribers()
-        self.check_requirements()

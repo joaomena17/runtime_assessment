@@ -27,7 +27,7 @@ class RuntimeAssessment:
         self.topics = config.topics
         self.rate = config.rate
         self.logger_path = config.logger_path
-        self.topic_pairs = []
+        self.topic_pairs = {}
 
         # Get specifications
         self.specifications = config.specifications
@@ -40,7 +40,7 @@ class RuntimeAssessment:
 
         # import message types
         for topic in self.topics.items():
-            self.topic_pairs.append((topic[0], import_message_type(topic)))
+            self.topic_pairs[topic[0]] = import_message_type(topic)
 
         # TODO: initialize assessment objects
         # maybe return thread pool that can be used by a closing assessment objects function (?)
@@ -50,7 +50,7 @@ class RuntimeAssessment:
         self.logger = logging.getLogger(f"RuntimeAssessment.{self.target_node}")
 
         current_date = datetime.now().strftime("%Y_%m_%d")
-        log_dir = os.path.join(config.log_path, f"{self.target_node.split('/')[1]}_{current_date}")
+        log_dir = os.path.join(self.logger_path, f"{self.target_node.split('/')[1]}_{current_date}")
         os.makedirs(log_dir, exist_ok=True) 
 
         # All Levels Handler
@@ -183,11 +183,4 @@ class RuntimeAssessment:
         """
         Initialize the assessment objects.
         """
-
-        for spec in self.specifications:
-            if spec == "metric_assessment":
-                pass
-            elif spec == "ros_topic_assessment":
-                pass
-            else:
-                raise ValueError(f"Key {spec} is not a valid specification declaration.")
+        pass
