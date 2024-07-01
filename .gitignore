@@ -4,3 +4,4 @@
 .vscode
 *.pyc
 /src/backup.txt
+/src/__pycache__
