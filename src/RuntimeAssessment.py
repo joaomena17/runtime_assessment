@@ -42,6 +42,10 @@ class RuntimeAssessment:
         for topic in self.topics.items():
             self.topic_pairs.append((topic[0], import_message_type(topic)))
 
+        # TODO: initialize assessment objects
+        # maybe return thread pool that can be used by a closing assessment objects function (?)
+        self.initialize_assessment_objects()
+
         # Logger setup
         self.logger = logging.getLogger(f"RuntimeAssessment.{self.target_node}")
 
@@ -173,3 +177,19 @@ class RuntimeAssessment:
         :return: float
         """
         return rospy.get_time() - self.start_time
+    
+
+    def initialize_assessment_objects(self):
+        """
+        Initialize the assessment objects.
+        """
+
+        # TODO: specs by method -> by topic -> pass list of all specs of a certain topic before initializing object
+
+        for spec in self.specifications:
+            if spec == "metric_assessment":
+                pass
+            elif spec == "ros_topic_assessment":
+                pass
+            else:
+                raise ValueError(f"Key {spec} is not a valid specification declaration.")

@@ -1,15 +1,17 @@
 import yaml
 from importlib import import_module
-from typing import List, Tuple
-
-
-def process_specification(specification_file: str) -> dict:
-    with open(specification_file, 'r') as f:
-        requirements = yaml.load(f)
-    return requirements
+from typing import List, Tuple, Any
 
 
 def unordered_points(positions: List[Tuple], target: List[Tuple], tolerance: float) -> bool:
+    """
+    Check if certain positions occur in the recorded poses.
+    :param positions: List[Tuple]
+    :param target: List[Tuple]
+    :param tolerance: float
+    :return: bool
+    """
+
     for pos in positions:
         tgt_x, tgt_y = pos
         found = False
@@ -80,7 +82,7 @@ def frequency_of_events(events: List[Tuple]) -> float:
         return 0
 
 
-def get_average_value(record) -> float:
+def get_average_value(record: Tuple) -> float:
         """
         Update the average velocity.
         :return: float
@@ -90,11 +92,13 @@ def get_average_value(record) -> float:
             for element in record:
                 _, vel = element
                 total += vel.linear.x
+
             return total / len(record)
+        
         raise ValueError("No velocity records found.")
 
 
-def import_message_type(topic_tuple):
+def import_message_type(topic_tuple: Tuple[str, str]) -> Any:
     """
     Import message types from a dictionary of topic names to message types
     :param topic_types: A tuple mapping topic names to message types
@@ -113,4 +117,18 @@ def import_message_type(topic_tuple):
     except (AttributeError, ModuleNotFoundError) as e:
         print(f"Failed to import message type for topic '{topic}': {e}")
         return None
-        
+    
+
+def has_attribute(obj: Any, attribute_path: str) -> bool:
+    """
+    Check if an object has an attribute (implicit or nested)
+    :param obj: Object to check
+    :param attribute_path: Path to the attribute
+    :return: True if the object has the nested attribute, False otherwise
+    """
+    current_object = obj
+    for attr in attribute_path.split('.'):
+        if not hasattr(current_object, attr):
+            return False
+        current_object = getattr(current_object, attr)
+    return True    

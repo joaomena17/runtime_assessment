@@ -10,10 +10,10 @@ class RuntimeAssessmentConfig:
         self.config_path = config_path
         self.config = self.parse_yaml_config(self.config_path)
         self.parse_setup()
-        self.specifications = self.config["specifications"]
+        self.specifications = self.parse_specifications()
 
 
-    def validate_config(self, config):
+    def validate_config(self, config) -> None:
         """
         Validate the configuration file.
         :param config: dict
@@ -27,13 +27,12 @@ class RuntimeAssessmentConfig:
                 raise ValueError(f"Missing required key '{key}' in configuration")
         
         for spec in config['specifications']:
-            print(spec)
             valid_spec_keys = ['metric_assessment', 'ros_topic_assessment']
-            if spec not in valid_spec_keys:
+            if [k for k in spec.keys()][0] not in valid_spec_keys:
                 raise ValueError(f"Key {spec} is not a valid specification declaration.")
 
 
-    def parse_yaml_config(self, yaml_file):
+    def parse_yaml_config(self, yaml_file) -> dict:
         """
         Parse the YAML configuration file.
         :param yaml_file: str
@@ -83,26 +82,22 @@ class RuntimeAssessmentConfig:
             self.logger_path = setup["logger_path"]
 
 
-    def parse_target_node(self) -> str:
+    def parse_specifications(self) -> dict:
         """
-        Parse the target node.
-        :return: str
-        """
-        return self.config["setup"]["target_node"]
-    
-
-    def parse_topics(self) -> List[str]:
-        """
-        Parse the topics.
-        :return: List[str]
-        """
-        return self.config["setup"]["topics"]
-    
-
-    def parse_specifications(self):
-        """
-        Parse the specifications.
+        Parse the specifications and output the requirements group by type of assessment.
         :return: dict
         """
-        for spec in self.config["specifications"]:
-            yield spec
+        conf = self.config["specifications"]
+
+        requirements = {}
+
+        for spec in conf:
+            key = list(spec.keys())[0]
+
+            if key in requirements.keys():
+                requirements[key].append(spec[key])
+            else:
+                requirements[key] = [spec[key]]
+        
+        return requirements
+

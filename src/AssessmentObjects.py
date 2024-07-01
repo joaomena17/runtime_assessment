@@ -13,7 +13,7 @@ class AssessmentObject:
     """
     Class to create an assessment object.
     """
-    def __init__(self, runtime_assessment: RuntimeAssessment):
+    def __init__(self, runtime_assessment: RuntimeAssessment, topic: Tuple[str, str]):
         self.node = runtime_assessment.node
         self.rate = runtime_assessment.rate
         self.logger = runtime_assessment.logger
@@ -266,8 +266,6 @@ class PoseAssessment(AssessmentObject):
         :return: None
         """
         self.create_subscribers()
-
-
 
 
 class CmdVelAssessment(AssessmentObject):
