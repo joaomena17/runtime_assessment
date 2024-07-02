@@ -1,6 +1,6 @@
 import yaml
 from typing import List, Tuple
-
+import sys
 
 class RuntimeAssessmentConfig:
     """
@@ -44,10 +44,10 @@ class RuntimeAssessmentConfig:
             return config
 
         except FileNotFoundError:
-            raise ValueError(f"Configuration file not found: {yaml_file}")
+            sys.exit(f"Configuration file not found: {yaml_file}")
         
         except Exception as e:
-            raise e
+            sys.exit(f"Unexpected Error: {e}")
 
 
     def parse_setup(self) -> None:
@@ -62,7 +62,7 @@ class RuntimeAssessmentConfig:
             raise ValueError("Missing 'target_node' in setup")
         else:
             self.target_node = setup["target_node"]
-        
+
         if "topics" not in setup:
             self.topics = []
         else:
@@ -110,10 +110,9 @@ class RuntimeAssessmentConfig:
                     requirements["metric"][metric] = []
 
                 for field, value in spec.items():
-                    if field != "topic":
+                    if field != "metric":
                         aux_dict[field] = value
 
                 requirements["metric"][metric].append(aux_dict)
         
         return requirements
-

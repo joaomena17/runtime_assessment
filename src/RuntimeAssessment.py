@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
-import importlib
+
 import os
+import sys
 import rospy
 import rosnode
-import rostopic
 import logging
+import rostopic
+import importlib
 from utils import *
 from RuntimeAssessmentConfig import RuntimeAssessmentConfig
 from GlobalEvents import GlobalEvents
@@ -20,7 +22,10 @@ class RuntimeAssessment:
 
     def __init__(self, config: RuntimeAssessmentConfig):
         # Initialize node
-        self.node = rospy.init_node('runtime_assessment')
+        try:
+            self.node = rospy.init_node('runtime_assessment')
+        except rospy.ROSException as e:
+            sys.exit(f"ROS Exception: {e}")
 
         # Declare setup variables
         self.target_node = config.target_node
@@ -30,7 +35,8 @@ class RuntimeAssessment:
         self.topic_pairs = {}
         self.start_time = float()
         self.execution_time = float()
-        self.total_number_of_messages = 0 # TODO: implement
+        self.number_of_messages = 0 # TODO: implement
+        self.frequency = 0 # TODO: implement
 
 
         # Get specifications
@@ -41,13 +47,6 @@ class RuntimeAssessment:
         self.is_paused = False
         self.is_running = False
         self.global_event_queue = []
-
-        # import message types
-        for topic in self.topics.items():
-            self.topic_pairs[topic[0]] = import_message_type(topic)
-
-        # TODO: initialize assessment objects
-        self.initialize_assessment_objects()
 
         # Logger setup
         self.logger = logging.getLogger(f"RuntimeAssessment.{self.target_node}")
@@ -77,6 +76,14 @@ class RuntimeAssessment:
         self.logger.addHandler(error_handler)
 
         self.logger.info(" ------------ RUNTIME ASSESSMENT ------------ ")
+
+        # import message types
+        for topic in self.topics.items():
+            self.topic_pairs[topic[0]] = import_message_type(topic)
+
+        # TODO: initialize assessment objects
+        self.assessment_pool = []
+        self.assessment_object_allocator()
     
 
     def publish_global_event(self, event: GlobalEvents) -> None:
@@ -182,8 +189,66 @@ class RuntimeAssessment:
         return rospy.get_time() - self.start_time
     
 
-    def initialize_assessment_objects(self):
+    def assessment_object_allocator(self):
         """
-        Initialize the assessment objects.
+        Allocate assessment objects based on the requirements
+        :param requirements: A dictionary of requirements
+        :return: A dictionary of assessment objects
         """
-        pass
+
+        # Topic assessments
+        for topic, requirements in self.specifications["topic"].items():
+
+            # Parameters to create the assessment object
+            message_class = self.topic_pairs[topic]            
+
+            # verify required keys are present
+            for req in requirements:
+                if "params" in req.keys():
+                    if "target" in req["params"].keys():
+                        continue
+                    else:
+                        self.logger.error(f"Value Error: No target key in params for {topic}")
+                        sys.exit()
+
+                else:
+                    self.logger.error(f"Value Error: No params key for {topic}")
+                    sys.exit()
+
+                # set default values for missing keys
+                req.setdefault('mode', "exists")
+                req.setdefault('temporal_consistency', False)
+                req.setdefault('timein', None)
+                req.setdefault('timeout', None)
+                req.setdefault('tolerance', 0.05)
+                req.setdefault('comparator', "=")
+
+            # TODO: create an assessment object for this topic
+
+        # Global metric assessments
+        for metric, requirements in self.specifications["metric"].items():
+
+            # verify required keys are present
+            for req in requirements:
+                if "params" in req.keys():
+                    if "target" in req["params"].keys():
+                        continue
+                    else:
+                        self.logger.error(f"Value Error: No target key in params for {topic}")
+                        sys.exit()
+
+                else:
+                    self.logger.error(f"Value Error: No params key for {topic}")
+                    sys.exit()
+            
+            # set default values for missing keys
+            for req in requirements:
+                req.setdefault('mode', "exists")
+                req.setdefault('temporal_consistency', False)
+                req.setdefault('timein', None)
+                req.setdefault('timeout', None)
+                req.setdefault('tolerance', 0.05)
+                req.setdefault('comparator', "=")
+
+            # TODO: create an assessment object for this metric
+        

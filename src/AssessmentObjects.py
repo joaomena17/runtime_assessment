@@ -13,7 +13,7 @@ class AssessmentObject:
     """
     Class to create an assessment object.
     """
-    def __init__(self, runtime_assessment: RuntimeAssessment, topic: Tuple[str, Any], specifications: dict = {}) -> None:
+    def __init__(self, runtime_assessment: RuntimeAssessment, topic_name: str, message_class: Any, specifications: List) -> None:
         # runtime assessment hooks and variables
         self.node = runtime_assessment.node
         self.rate = runtime_assessment.rate
@@ -22,7 +22,8 @@ class AssessmentObject:
 
         # assessment object variables
         self.latest_global_event = Tuple()
-        self.topic_name, self.message_class = topic
+        self.topic_name = topic_name
+        self.message_class = message_class
         self.specifications = specifications
         self.latest_topic_event = self.message_class()
         self.topic_event_record = []
