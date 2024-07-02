@@ -23,8 +23,19 @@ class RuntimeAssessmentConfig:
         required_keys = ['setup', 'specifications']
         
         for key in required_keys:
-            if key not in config:
+            if key not in config.keys():
                 raise ValueError(f"Missing required key '{key}' in configuration")
+            
+        for key in config.keys():
+            if key not in required_keys:
+                raise ValueError(f"Invalid key '{key}' in configuration")
+            
+        for specs in config["specifications"]:
+            if "topic" not in specs.keys() and "metric" not in specs.keys():
+                raise ValueError("Missing 'topic' or 'metric' in specifications")
+            
+            if "target" not in specs.keys():
+                raise ValueError("Missing 'target' in specifications")
         
         # TODO: try to make more thorough verification of specifications section
 
@@ -46,6 +57,9 @@ class RuntimeAssessmentConfig:
         except FileNotFoundError:
             sys.exit(f"Configuration file not found: {yaml_file}")
         
+        except ValueError as e:
+            sys.exit(f"Configuration file error: {e}")
+
         except Exception as e:
             sys.exit(f"Unexpected Error: {e}")
 

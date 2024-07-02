@@ -203,18 +203,7 @@ class RuntimeAssessment:
             message_class = self.topic_pairs[topic]            
 
             # verify required keys are present
-            for req in requirements:
-                if "params" in req.keys():
-                    if "target" in req["params"].keys():
-                        continue
-                    else:
-                        self.logger.error(f"Value Error: No target key in params for {topic}")
-                        sys.exit()
-
-                else:
-                    self.logger.error(f"Value Error: No params key for {topic}")
-                    sys.exit()
-
+            for req in requirements:   
                 # set default values for missing keys
                 req.setdefault('mode', "exists")
                 req.setdefault('temporal_consistency', False)
@@ -228,22 +217,9 @@ class RuntimeAssessment:
         # Global metric assessments
         for metric, requirements in self.specifications["metric"].items():
 
-            # verify required keys are present
-            for req in requirements:
-                if "params" in req.keys():
-                    if "target" in req["params"].keys():
-                        continue
-                    else:
-                        self.logger.error(f"Value Error: No target key in params for {topic}")
-                        sys.exit()
-
-                else:
-                    self.logger.error(f"Value Error: No params key for {topic}")
-                    sys.exit()
             
-            # set default values for missing keys
-            for req in requirements:
-                req.setdefault('mode', "exists")
+                # set default values for missing keys
+                req.setdefault('mode', "total")
                 req.setdefault('temporal_consistency', False)
                 req.setdefault('timein', None)
                 req.setdefault('timeout', None)

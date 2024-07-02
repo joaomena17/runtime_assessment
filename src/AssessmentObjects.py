@@ -13,7 +13,7 @@ class AssessmentObject:
     """
     Class to create an assessment object.
     """
-    def __init__(self, runtime_assessment: RuntimeAssessment, topic_name: str, message_class: Any, specifications: List) -> None:
+    def __init__(self, runtime_assessment: RuntimeAssessment, topic_name: str, message_class: Any, requirements: List) -> None:
         # runtime assessment hooks and variables
         self.node = runtime_assessment.node
         self.rate = runtime_assessment.rate
@@ -24,7 +24,7 @@ class AssessmentObject:
         self.latest_global_event = Tuple()
         self.topic_name = topic_name
         self.message_class = message_class
-        self.specifications = specifications
+        self.specifications = requirements
         self.latest_topic_event = self.message_class()
         self.topic_event_record = []
         
@@ -107,14 +107,6 @@ class AssessmentObject:
         self.remove_subscribers()
         self.check_requirements()
 
-
-    def check_requirements(self) -> None:
-        """
-        Check the requirements.
-        :return: None
-        """
-        pass
-
     
     def save_record(self, target: List, data: Any) -> None:
         """
@@ -188,7 +180,7 @@ class AssessmentObject:
         return False
     
 
-    def check_requirements(self, requirements: dict = {}) -> bool:
+    def check_requirements(self) -> bool:
 
         """
         Check if the requirements are met.
@@ -196,31 +188,15 @@ class AssessmentObject:
         :return: bool
         """
 
-        for req, params in requirements.items():
-            if req == "ordered_path":
-                res = self.check_points(params, self.pose_record, ordered=True)
-                self.logger.info(f"Result for ordered path verification: {res}")
-                    
-            elif req == "unordered_path":
-                res = self.check_points(params, self.pose_record)
-                self.logger.info(f"Result for unordered path verification: {res}")
+        for req in self.requirements:
+            mode = req["mode"]
+            params = req["params"]
+            tolerance = req["tolerance"]
+            comparator = req["comparator"]
+            temporal_consistency = req["temporal_consistency"]
+            timein = req["timein"]
+            timeout = req["timeout"]
 
-            elif req == "average_velocity":
-                res = self.check_value_params(value=get_average_value(self.cmd_vel_record), target=params[0], comp=params[1])
-                self.logger.info(f"Result for average velocity verification: {res}")
-
-            elif req == "frequency":
-                #print(self.frequency_of_events(self.pose_record), params[0], params[1])
-                res = self.check_value_params(value=frequency_of_events(self.cmd_vel_record), target=params[0], comp=params[1])
-                self.logger.info(f"Result for frequency verification: {res}")
-            
-            elif req == "execution_time":
-                res = self.check_value_params(value=self.total_execution_time, target=params[0], comp="=" if len(params) == 1 else params[1])
-                self.logger.info(f"Result for execution time verification: {res}")
-            
-            else:
-                self.logger.error(f"{req} - Invalid requirement.")
-                return False
         
         return True
     

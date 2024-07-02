@@ -10,89 +10,70 @@ setup:
 specifications:
 
   - topic: turtle1/pose
-    mode: exists
-    params:
-      target:
-        - { position.x: 10, position.y: 5.5 }
-        - { position.x: 10, position.y: 10.5 }
-        - { position.x: 5, position.y: 10.5 }
-        - { position.x: 5, position.y: 5.5 }
+    mode: exists # default value // or max, min, total, exists, absent, frequency, average, metric
+    target:
+      - { position.x: 10, position.y: 5.5 }
+      - { position.x: 10, position.y: 10.5 }
+      - { position.x: 5, position.y: 10.5 }
+      - { position.x: 5, position.y: 5.5 }
 
   - topic: turtle1/pose
-    mode: exists
     temporal_consistency: true  
-    params:
-      tolerance: 0.05
-      target:
-        - { position.x: 10, position.y: 5.5 }
-        - { position.x: 5.5, position.y: 5.5 }
-        - { position.x: 5.5, position.y: 10.5 }
-        - { position.x: 10, position.y: 10.5 }
+    tolerance: 0.05
+    target:
+      - { position.x: 10, position.y: 5.5 }
+      - { position.x: 5.5, position.y: 5.5 }
+      - { position.x: 5.5, position.y: 10.5 }
+      - { position.x: 10, position.y: 10.5 }
 
   - topic: turtle1/pose
-    mode: exists
-    params:
-      timein: 10.0
-      timeout: 20.0
-      target:
-        - { position.x: 10, position.y: 5.5 }
+    timein: 10.0
+    timeout: 20.0
+    target:
+      - { position.x: 10, position.y: 5.5 }
 
   - topic: turtle1/cmd_vel
-    mode: average # or max, min, total, exists, absent, frequency
-    params:
-      comparator: ">"
-      target: 
-        - linear.x: 1.5
+    mode: average
+    comparator: ">"
+    target: 
+      - linear.x: 1.5
 
   - topic: turtle1/cmd_vel
     mode: max
-    params:
-      comparator: "<"
-      target:
-        - angular.z: 0.5
+    comparator: "<"
+    target:
+      - angular.z: 0.5
 
   - topic: turtle1/cmd_vel
     mode: max
-    params:
-      comparator: "<"
-      target:
-        - linear.x:
-          min: 0.5
-          max: 1.5
+    target:
+      - linear.x:
+        min: 0.5
+        max: 1.5
 
   - topic: turtle1/checkpoint
-    mode: exists
-    params:
-      target:
-        - data: "reached 1"
-        - data: "reached 2"
-        - data: "reached 3"
-        - data: "reached 4"
+    target:
+      - data: "reached 1"
+      - data: "reached 2"
+      - data: "reached 3"
+      - data: "reached 4"
 
   - topic: turtle1/checkpoint
-    mode: frequency
-    params:
-      target: 60.0
-
-  # global assessments
+    mode: metric
+    target:
+      - frequency: 60.0
 
   - metric: "number_of_messages"
-    # mode: total - default
-    params:
-      timeout: 60.0
-      target: 
-        min: 30.0
-        max: 40.0
+    timeout: 60.0
+    target: 
+      min: 30.0
+      max: 40.0
 
   - metric: "execution_time"
-    # mode: total - default
-    params:
-      comparator: "<"
-      target: 60.0
+    comparator: "<"
+    target: 60.0
 
   - metric: "frequency"
-    # mode: total - default
-    params:
-      target: 
-        min: 30.0
-        max: 40.0
+    target: 
+      min: 30.0
+      max: 40.0
