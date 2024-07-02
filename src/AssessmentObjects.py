@@ -122,7 +122,7 @@ class AssessmentObject:
             self.logger.error(e)
             
     
-    def exists_on_record(self, target: List, record: List[Tuple], ordered: bool = False, tolerance: float = 0.05) -> bool:
+    def exists_on_record(self, target: List, record: List[Tuple], ordered: bool = False, tolerance: float = 0.05, timein=None, timeout=None) -> bool:
         """
         Check if certain points occur in a target record.
         :param positions: List[Tuple]
@@ -132,13 +132,13 @@ class AssessmentObject:
         
         if ordered:
             try:
-                return ordered_points(target, record, tolerance)
+                return ordered_points(target, record, tolerance, timein, timeout)
             except Exception as e:
                 self.logger.error(e)
                 return False
         else:
             try:
-                return unordered_points(target, record, tolerance)
+                return unordered_points(target, record, tolerance, timein, timeout)
             except Exception as e:
                 self.logger.error(e)
                 return False
@@ -162,7 +162,7 @@ class AssessmentObject:
 
             if mode == "exists":
                 try:
-                    if not self.exists_on_record(target, self.topic_event_record, ordered=temporal_consistency, tolerance=tolerance):
+                    if not self.exists_on_record(target, self.topic_event_record, ordered=temporal_consistency, tolerance=tolerance, timein=timein, timeout=timeout):
                         self.logger.error(f"Requirement {req} FAILED.")
                         break
 

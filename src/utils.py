@@ -39,7 +39,7 @@ def check_value_params(value: float, target: Union[float, Tuple], tolerance: flo
     return False
 
 
-def unordered_points(target: List[dict], record: List[Tuple], tolerance: float) -> bool:
+def unordered_points(target: List[dict], record: List[Tuple], tolerance: float, timein=None, timeout=None) -> bool:
     """
     Check if certain positions occur in the recorded poses.
     :param positions: List[Tuple]
@@ -48,19 +48,22 @@ def unordered_points(target: List[dict], record: List[Tuple], tolerance: float) 
     :return: bool
     """
 
+    # filter the records based on the timein and timeout
+    records = filter_by_time(record, timein, timeout)
+
     # look for every event in any order
     for pos in target:
 
         # check if the attributes are present in the recorded data
         for attr in pos.keys():
-            if not has_attribute(record[0][1], attr):
+            if not has_attribute(records[0][1], attr):
                 raise ValueError(f"Attribute '{attr}' not found in record.")
         
         # default found state to false
         found = False
 
         # traverse the records and check if all attributes of the target's current position are present
-        for element in target:
+        for element in records:
             _, data = element
 
             for attr, val in pos.items():
@@ -83,7 +86,7 @@ def unordered_points(target: List[dict], record: List[Tuple], tolerance: float) 
     return True
 
 
-def ordered_points(target: List, record: List[Tuple], tolerance: float = 0.05) -> bool:
+def ordered_points(target: List, record: List[Tuple], tolerance: float = 0.05, timein=None, timeout=None) -> bool:
     """
     Check if certain positions occur in the recorded poses in order.
     :param positions: List[Tuple]
@@ -93,6 +96,9 @@ def ordered_points(target: List, record: List[Tuple], tolerance: float = 0.05) -
 
     # copy the records and sort based on the first element of the timestamp
     records = sorted(record, key=lambda x: x[0])
+
+    # filter the records based on the timein and timeout
+    records = filter_by_time(records, timein, timeout)
 
     # look for the positions in order
     for pos in target:
@@ -204,3 +210,22 @@ def has_attribute(obj: Any, attribute_path: str) -> bool:
             return False
         current_object = getattr(current_object, attr)
     return True    
+
+
+def filter_by_time(record: List[Tuple], timein=None, timeout=None) -> List[Tuple]:
+    """
+    Filter records based on the time range.
+    :param record: List[Tuple]
+    :param timein: float
+    :param timeout: float
+    :return: List[Tuple]
+    """
+    # filter the records based on the timein and timeout
+    if timein and timeout:
+        return [x for x in record if timein < x[0] < timeout]
+
+    elif timein:
+        return [x for x in record if x[0] > timein]
+    
+    elif timeout:
+        return [x for x in record if x[0] < timeout]
