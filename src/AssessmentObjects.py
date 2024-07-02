@@ -19,6 +19,10 @@ class AssessmentObject:
         self.rate = runtime_assessment.rate
         self.logger = runtime_assessment.logger
         self.runtime_assessment = runtime_assessment
+        self.start_time = 0
+        self.execution_time = 0
+        self.number_of_messages = 0
+        self.frequency = 0
 
         # assessment object variables
         self.latest_global_event = Tuple()
@@ -196,18 +200,52 @@ class AssessmentObject:
                     break
 
             elif mode == "max":
-                pass
+                record = filter_by_time(self.topic_event_record, timein, timeout)
+                attr, tgt_val = target
+                value = get_max(attr, record)
+
+                try:    
+                    if check_value_params(value, tgt_val, comparator, tolerance):
+                        self.logger.info(f"Requirement {req} PASSED.")
+
+                    else:
+                        self.logger.error(f"Requirement {req} FAILED.")
+
+                except Exception as e:
+                    self.logger.error(f"Requirement {req} FAILED - {e}")
 
             elif mode == "min":
-                pass
+                record = filter_by_time(self.topic_event_record, timein, timeout)
+                attr, tgt_val = target
+                value = get_min(attr, record)
 
-            elif mode == "total":
-                pass
+                try:    
+                    if check_value_params(value, tgt_val, comparator, tolerance):
+                        self.logger.info(f"Requirement {req} PASSED.")
+
+                    else:
+                        self.logger.error(f"Requirement {req} FAILED.")
+
+                except Exception as e:
+                    self.logger.error(f"Requirement {req} FAILED - {e}")
 
             elif mode == "average":
-                pass
+                record = filter_by_time(self.topic_event_record, timein, timeout)
+                attr, tgt_val = target
+                value = get_average_value(attr, record)
+
+                try:    
+                    if check_value_params(value, tgt_val, comparator, tolerance):
+                        self.logger.info(f"Requirement {req} PASSED.")
+
+                    else:
+                        self.logger.error(f"Requirement {req} FAILED.")
+
+                except Exception as e:
+                    self.logger.error(f"Requirement {req} FAILED - {e}")
 
             elif mode == "metric":
+                # TODO: Implement metric mode
                 pass
 
             else:

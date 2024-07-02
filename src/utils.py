@@ -12,6 +12,8 @@ def check_value_params(value: float, target: Union[float, Tuple], tolerance: flo
     :return: bool
     """
     
+    # TODO: support range of values
+    
     if isinstance(target, tuple):
         min_target, max_target = target
         if min_target < value < max_target:
@@ -68,7 +70,7 @@ def unordered_points(target: List[dict], record: List[Tuple], tolerance: float, 
 
             for attr, val in pos.items():
                 # apply tolerance for numerical values
-                if isinstance(val, (int, float)):
+                if is_numeric(val):
                     check = abs(data.__getattribute__(attr) - val) < (val * tolerance)
                 else:
                     check = data.__getattribute__(attr) == val
@@ -118,7 +120,7 @@ def ordered_points(target: List, record: List[Tuple], tolerance: float = 0.05, t
             for attr, val in pos.items():
 
                 # apply tolerance for numerical values
-                if isinstance(val, (int, float)):
+                if is_numeric(val):
                     check = abs(data.__getattribute__(attr) - val) < (val * tolerance)
                 else:
                     check = data.__getattribute__(attr) == val
@@ -135,6 +137,15 @@ def ordered_points(target: List, record: List[Tuple], tolerance: float = 0.05, t
     return True
 
 
+def is_numeric(value: Any) -> bool:
+    """
+    Check if a value is numeric.
+    :param value: Any
+    :return: bool
+    """
+    return isinstance(value, (int, float))
+
+
 def time_between_events(e1: Tuple, e2: Tuple) -> float:
     """
     Calculate the time between two events.
@@ -146,34 +157,39 @@ def time_between_events(e1: Tuple, e2: Tuple) -> float:
 
 
 def frequency_of_events(events: List[Tuple]) -> float:
-        """
-        Calculate the frequency of events.
-        :param events: List[Tuple]
-        :return: float
-        """
-        if events:
-            total = 0
-            for i in range(len(events) - 1):
-                total += time_between_events(events[i], events[i + 1])
-            return 1/(total / len(events))
-        
-        return 0
+    """
+    Calculate the frequency of events.
+    :param events: List[Tuple]
+    :return: float
+    """
+    if events:
+        total = 0
+        for i in range(len(events) - 1):
+            total += time_between_events(events[i], events[i + 1])
+        return 1/(total / len(events))
+    
+    return 0
 
 
-def get_average_value(record: Tuple) -> float:
-        """
-        Update the average velocity.
-        :return: float
-        """
-        if record:
-            total = 0
-            for element in record:
-                _, vel = element
-                total += vel.linear.x
+def get_average_value(attr: str, record: Tuple) -> float:
+    """
+    Update the average velocity.
+    :return: float
+    """
+    if not record:
+        raise ValueError("No records found.")
+    
+    if not has_attribute(record[0][1], attr):
+        raise ValueError(f"Attribute '{attr}' not found in record.")
+    
+    if not is_numeric(record[0][1].__getattribute__(attr)):
+        raise ValueError(f"Attribute '{attr}' is not numeric.")
 
-            return total / len(record)
-        
-        raise ValueError("No velocity records found.")
+    total = 0
+    for _, data in record:
+        total += data.__getattribute__(attr)
+
+    return total / len(record)
 
 
 def import_message_type(topic_tuple: Tuple[str, str]) -> Any:
@@ -229,3 +245,39 @@ def filter_by_time(record: List[Tuple], timein=None, timeout=None) -> List[Tuple
     
     elif timeout:
         return [x for x in record if x[0] < timeout]
+
+
+def get_max(attr: str, record: List[Tuple]) -> float:
+    """
+    Get the maximum value from the record.
+    :param record: List[Tuple]
+    :return: float
+    """
+    if not record:
+        raise ValueError("No records found.")
+    
+    if not has_attribute(record[0][1], attr):
+        raise ValueError(f"Attribute '{attr}' not found in record.")
+
+    if not is_numeric(record[0][1].__getattribute__(attr)):
+        raise ValueError(f"Attribute '{attr}' is not numeric.")
+        
+    return max([x[1].__getattribute__(attr) for x in record])
+
+
+def get_min(attr: str, record: List[Tuple]) -> float:
+    """
+    Get the minimum value from the record.
+    :param record: List[Tuple]
+    :return: float
+    """
+    if not record:
+        raise ValueError("No records found.")
+    
+    if not has_attribute(record[0][1], attr):
+        raise ValueError(f"Attribute '{attr}' not found in record.")
+    
+    if not is_numeric(record[0][1].__getattribute__(attr)):
+        raise ValueError(f"Attribute '{attr}' is not numeric.")
+    
+    return min([x[1].__getattribute__(attr) for x in record])

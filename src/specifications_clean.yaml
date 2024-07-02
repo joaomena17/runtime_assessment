@@ -10,7 +10,7 @@ setup:
 specifications:
 
   - topic: turtle1/pose
-    mode: exists # default value // or max, min, total, exists, absent, average, metric
+    mode: exists # default value // or max, min, exists, absent, average, metric
     target:
       - { position.x: 10, position.y: 5.5 }
       - { position.x: 10, position.y: 10.5 }
