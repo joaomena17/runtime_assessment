@@ -5,7 +5,7 @@ from geometry_msgs.msg import Twist
 from std_msgs.msg import String
 import rospy
 from GlobalEvents import GlobalEvents
-from utils import ordered_points, unordered_points, get_average_value, frequency_of_events, has_attribute
+from utils import *
 from RuntimeAssessment import RuntimeAssessment
 
 
@@ -142,46 +142,9 @@ class AssessmentObject:
             except Exception as e:
                 self.logger.error(e)
                 return False
-            
-
-    def check_value_params(self, value: float, target: Union[float, Tuple], tolerance: float = 0.05, comp: str = "=") -> bool:
-        """
-        Check if the average velocity of the turtle is within the tolerance of the target.
-        :param value: float
-        :param target: float || Tuple
-        :param tolerance: float
-        :return: bool
-        """
-        
-        if isinstance(target, tuple):
-            min_target, max_target = target
-            if min_target < value < max_target:
-                return True
-            
-        elif isinstance(target, float):
-            comparison_dict = {
-                "=": lambda: target*(1 - tolerance) < value < target*(1 + tolerance),
-                ">": lambda: value > target,
-                "<": lambda: value < target,
-                ">=": lambda: value >= target,
-                "<=": lambda: value <= target,
-                "!=": lambda: value != target,
-            }
-
-            if comp in comparison_dict:
-                return comparison_dict[comp]()
-
-            else:
-                self.logger.error("Invalid comparison operator.")
-        
-        else:
-            self.logger.error("Invalid target.")
-            
-        return False
     
 
     def check_requirements(self) -> bool:
-
         """
         Check if the requirements are met.
         :param requirements: List[Tuple]

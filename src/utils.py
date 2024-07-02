@@ -1,6 +1,42 @@
 import yaml
 from importlib import import_module
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Union
+
+
+def check_value_params(value: float, target: Union[float, Tuple], tolerance: float = 0.05, comp: str = "=") -> bool:
+    """
+    Check if the average velocity of the turtle is within the tolerance of the target.
+    :param value: float
+    :param target: float || Tuple
+    :param tolerance: float
+    :return: bool
+    """
+    
+    if isinstance(target, tuple):
+        min_target, max_target = target
+        if min_target < value < max_target:
+            return True
+        
+    elif isinstance(target, float):
+        comparison_dict = {
+            "=": lambda: target*(1 - tolerance) < value < target*(1 + tolerance),
+            ">": lambda: value > target,
+            "<": lambda: value < target,
+            ">=": lambda: value >= target,
+            "<=": lambda: value <= target,
+            "!=": lambda: value != target,
+        }
+
+        if comp in comparison_dict:
+            return comparison_dict[comp]()
+
+        else:
+            raise ValueError("Invalid comparison operator.")
+    
+    else:
+        raise ValueError("Invalid target.")
+        
+    return False
 
 
 def unordered_points(target: List[dict], record: List[Tuple], tolerance: float) -> bool:
