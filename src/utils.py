@@ -3,53 +3,89 @@ from importlib import import_module
 from typing import List, Tuple, Any
 
 
-def unordered_points(positions: List[Tuple], target: List[Tuple], tolerance: float) -> bool:
+def unordered_points(target: List[dict], record: List[Tuple], tolerance: float) -> bool:
     """
     Check if certain positions occur in the recorded poses.
     :param positions: List[Tuple]
-    :param target: List[Tuple]
+    :param target: List
     :param tolerance: float
     :return: bool
     """
 
-    for pos in positions:
-        tgt_x, tgt_y = pos
+    # look for every event in any order
+    for pos in target:
+
+        # check if the attributes are present in the recorded data
+        for attr in pos.keys():
+            if not has_attribute(record[0][1], attr):
+                raise ValueError(f"Attribute '{attr}' not found in record.")
+        
+        # default found state to false
         found = False
+
+        # traverse the records and check if all attributes of the target's current position are present
         for element in target:
-            _, pose = element
-            if abs(pose.x - tgt_x) < (tgt_x * tolerance) and abs(pose.y - tgt_y) < (tgt_y * tolerance):
+            _, data = element
+
+            for attr, val in pos.items():
+                # apply tolerance for numerical values
+                if isinstance(val, (int, float)):
+                    check = abs(data.__getattribute__(attr) - val) < (val * tolerance)
+                else:
+                    check = data.__getattribute__(attr) == val
+                
+                if not check:
+                    break
+
+            if check:
                 found = True
                 break
+                
         if not found:
             return False    
                 
     return True
 
 
-def ordered_points(positions: List[Tuple], target: List[Tuple], tolerance: float = 0.05) -> bool:
+def ordered_points(target: List, record: List[Tuple], tolerance: float = 0.05) -> bool:
     """
     Check if certain positions occur in the recorded poses in order.
     :param positions: List[Tuple]
     :param tolerance: float
     :return: bool
     """
+
     # copy the records and sort based on the first element of the timestamp
-    records = sorted(target, key=lambda x: x[0])
+    records = sorted(record, key=lambda x: x[0])
 
     # look for the positions in order
-    for pos in positions:
-        tgt_x, tgt_y = pos
+    for pos in target:
+
+        # check if the attributes are present in the recorded data
+        for attr in pos.keys():
+            if not has_attribute(record[0][1], attr):
+                raise ValueError(f"Attribute '{attr}' not found in record.")
+            
+        # default found state to false
         found = False
 
+        # traverse the records and check if all attributes of the target's current position are present in order
         for i, element in enumerate(records):
-            _, pose = element
-            if abs(pose.x - tgt_x) < (tgt_x * tolerance) and abs(pose.y - tgt_y) < (tgt_y * tolerance):                    
+            _, data = element
+
+            for attr, val in pos.items():
+
+                # apply tolerance for numerical values
+                if isinstance(val, (int, float)):
+                    check = abs(data.__getattribute__(attr) - val) < (val * tolerance)
+                else:
+                    check = data.__getattribute__(attr) == val
+
+            if check:
                 # remove all positions that occured before the current one from search space
                 records = records[i:]
                 found = True
                 break
-            else:
-                found = False
 
         if not found:
             return False

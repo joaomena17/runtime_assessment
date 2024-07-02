@@ -202,7 +202,6 @@ class RuntimeAssessment:
             # Parameters to create the assessment object
             message_class = self.topic_pairs[topic]            
 
-            # verify required keys are present
             for req in requirements:   
                 # set default values for missing keys
                 req.setdefault('mode', "exists")
@@ -211,13 +210,13 @@ class RuntimeAssessment:
                 req.setdefault('timeout', None)
                 req.setdefault('tolerance', 0.05)
                 req.setdefault('comparator', "=")
+                req.setdefault('min', None)
+                req.setdefault('max', None)
 
             # TODO: create an assessment object for this topic
 
         # Global metric assessments
         for metric, requirements in self.specifications["metric"].items():
-
-            
                 # set default values for missing keys
                 req.setdefault('mode', "total")
                 req.setdefault('temporal_consistency', False)
@@ -225,6 +224,8 @@ class RuntimeAssessment:
                 req.setdefault('timeout', None)
                 req.setdefault('tolerance', 0.05)
                 req.setdefault('comparator', "=")
+                req.setdefault('min', None)
+                req.setdefault('max', None)
 
             # TODO: create an assessment object for this metric
         

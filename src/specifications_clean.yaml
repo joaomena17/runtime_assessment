@@ -10,7 +10,7 @@ setup:
 specifications:
 
   - topic: turtle1/pose
-    mode: exists # default value // or max, min, total, exists, absent, frequency, average, metric
+    mode: exists # default value // or max, min, total, exists, absent, average, metric
     target:
       - { position.x: 10, position.y: 5.5 }
       - { position.x: 10, position.y: 10.5 }
@@ -48,8 +48,8 @@ specifications:
     mode: max
     target:
       - linear.x:
-        min: 0.5
-        max: 1.5
+        - min: 0.5
+        - max: 1.5
 
   - topic: turtle1/checkpoint
     target:
@@ -62,6 +62,8 @@ specifications:
     mode: metric
     target:
       - frequency: 60.0
+
+############################################
 
   - metric: "number_of_messages"
     timeout: 60.0

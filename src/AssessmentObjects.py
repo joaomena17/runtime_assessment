@@ -5,7 +5,7 @@ from geometry_msgs.msg import Twist
 from std_msgs.msg import String
 import rospy
 from GlobalEvents import GlobalEvents
-from utils import ordered_points, unordered_points, get_average_value, frequency_of_events
+from utils import ordered_points, unordered_points, get_average_value, frequency_of_events, has_attribute
 from RuntimeAssessment import RuntimeAssessment
 
 
@@ -122,7 +122,7 @@ class AssessmentObject:
             self.logger.error(e)
             
     
-    def exists_on_record(self, positions: List[Tuple], target: List[Tuple], ordered: bool = False, tolerance: float = 0.05) -> bool:
+    def exists_on_record(self, target: List, record: List[Tuple], ordered: bool = False, tolerance: float = 0.05) -> bool:
         """
         Check if certain points occur in a target record.
         :param positions: List[Tuple]
@@ -132,13 +132,13 @@ class AssessmentObject:
         
         if ordered:
             try:
-                return ordered_points(positions, target, tolerance)
+                return ordered_points(target, record, tolerance)
             except Exception as e:
                 self.logger.error(e)
                 return False
         else:
             try:
-                return unordered_points(positions, target, tolerance)
+                return unordered_points(target, record, tolerance)
             except Exception as e:
                 self.logger.error(e)
                 return False
@@ -190,13 +190,65 @@ class AssessmentObject:
 
         for req in self.requirements:
             mode = req["mode"]
-            params = req["params"]
+            target = req["target"]
             tolerance = req["tolerance"]
             comparator = req["comparator"]
             temporal_consistency = req["temporal_consistency"]
             timein = req["timein"]
             timeout = req["timeout"]
 
+            if mode == "exists":
+                try:
+                    if not self.exists_on_record(target, self.topic_event_record, ordered=temporal_consistency, tolerance=tolerance):
+                        self.logger.error(f"Requirement {req} FAILED.")
+                        break
+
+                    else:
+                        self.logger.info(f"Requirement {req} PASSED.")
+
+                except ValueError as e:
+                    self.logger.error(f"Requirement {req} FAILED - {e}")
+                    break
+                
+                except Exception as e:
+                    self.logger.error(f"Requirement {req} FAILED - {e}")
+                    break
+
+
+            elif mode == "absent":
+                try:
+                    if self.exists_on_record(target, self.topic_event_record, ordered=temporal_consistency, tolerance=tolerance):
+                        self.logger.error(f"Requirement {req} FAILED.")
+                        break
+
+                    else:
+                        self.logger.info(f"Requirement {req} PASSED.")
+
+                except ValueError as e:
+                    self.logger.error(f"Requirement {req} FAILED - {e}")
+                    break
+                
+                except Exception as e:
+                    self.logger.error(f"Requirement {req} FAILED - {e}")
+                    break
+
+            elif mode == "max":
+                pass
+
+            elif mode == "min":
+                pass
+
+            elif mode == "total":
+                pass
+
+            elif mode == "average":
+                pass
+
+            elif mode == "metric":
+                pass
+
+            else:
+                self.logger.error(f"Requirement {req} FAILED - Invalid mode.")
         
         return True
     
