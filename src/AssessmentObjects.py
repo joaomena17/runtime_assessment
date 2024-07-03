@@ -167,7 +167,7 @@ class AssessmentObject:
             if mode == "exists":
                 try:
                     if not self.exists_on_record(target, self.topic_event_record, ordered=temporal_consistency, tolerance=tolerance, timein=timein, timeout=timeout):
-                        self.logger.error(f"Requirement {req} FAILED.")
+                        self.logger.info(f"Requirement {req} FAILED.")
                         break
 
                     else:
@@ -185,7 +185,7 @@ class AssessmentObject:
             elif mode == "absent":
                 try:
                     if self.exists_on_record(target, self.topic_event_record, ordered=temporal_consistency, tolerance=tolerance):
-                        self.logger.error(f"Requirement {req} FAILED.")
+                        self.logger.info(f"Requirement {req} FAILED.")
                         break
 
                     else:
@@ -199,50 +199,66 @@ class AssessmentObject:
                     self.logger.error(f"Requirement {req} FAILED - {e}")
                     break
 
-            elif mode == "max":
+            elif mode == "max" or mode == "min" or mode == "average":
                 record = filter_by_time(self.topic_event_record, timein, timeout)
                 attr, tgt_val = target
-                value = get_max(attr, record)
 
-                try:    
-                    if check_value_params(value, tgt_val, comparator, tolerance):
-                        self.logger.info(f"Requirement {req} PASSED.")
+                # get the value based on the mode
+                if mode == "max":
+                    value = get_max(attr, record)
 
-                    else:
-                        self.logger.error(f"Requirement {req} FAILED.")
+                elif mode == "min":
+                    value = get_min(attr, record)
 
-                except Exception as e:
-                    self.logger.error(f"Requirement {req} FAILED - {e}")
+                elif mode == "average":
+                    value = get_average_value(attr, record)
+                    
+                if isinstance(tgt_val, list):
+                    # default values to None
+                    min_val = None
+                    max_val = None
 
-            elif mode == "min":
-                record = filter_by_time(self.topic_event_record, timein, timeout)
-                attr, tgt_val = target
-                value = get_min(attr, record)
+                    for limit in tgt_val:
+                        for k, v in limit.items():
+                            if not is_numeric(v):
+                                self.logger.error(f"Requirement {req} FAILED - Invalid target value.")
+                                break
 
-                try:    
-                    if check_value_params(value, tgt_val, comparator, tolerance):
-                        self.logger.info(f"Requirement {req} PASSED.")
+                            if k == "min":
+                                min_val = v
+                            elif k == "max":
+                                max_val = v
+                            else:
+                                self.logger.error(f"Requirement {req} FAILED - Invalid target value.")
+                                break
+  
+                    try:
 
-                    else:
-                        self.logger.error(f"Requirement {req} FAILED.")
+                        if check_value_params(value, (min_val, max_val), comparator, tolerance):
+                            self.logger.info(f"Requirement {req} PASSED.")
 
-                except Exception as e:
-                    self.logger.error(f"Requirement {req} FAILED - {e}")
+                        else:
+                            self.logger.info(f"Requirement {req} FAILED.")
 
-            elif mode == "average":
-                record = filter_by_time(self.topic_event_record, timein, timeout)
-                attr, tgt_val = target
-                value = get_average_value(attr, record)
+                    except Exception as e:
+                        self.logger.error(f"Requirement {req} FAILED - {e}")
 
-                try:    
-                    if check_value_params(value, tgt_val, comparator, tolerance):
-                        self.logger.info(f"Requirement {req} PASSED.")
 
-                    else:
-                        self.logger.error(f"Requirement {req} FAILED.")
+                elif is_numeric(tgt_val):
 
-                except Exception as e:
-                    self.logger.error(f"Requirement {req} FAILED - {e}")
+                    try:
+                        if check_value_params(value, tgt_val, comparator, tolerance):
+                            self.logger.info(f"Requirement {req} PASSED.")
+
+                        else:
+                            self.logger.info(f"Requirement {req} FAILED.")
+
+                    except Exception as e:
+                        self.logger.error(f"Requirement {req} FAILED - {e}")
+                
+                else:
+                    self.logger.error(f"Requirement {req} FAILED - Invalid target value.")
+            
 
             elif mode == "metric":
                 # TODO: Implement metric mode

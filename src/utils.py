@@ -12,8 +12,6 @@ def check_value_params(value: float, target: Union[float, Tuple], tolerance: flo
     :return: bool
     """
     
-    # TODO: support range of values
-    
     if isinstance(target, tuple):
         min_target, max_target = target
         if min_target < value < max_target:
@@ -238,13 +236,13 @@ def filter_by_time(record: List[Tuple], timein=None, timeout=None) -> List[Tuple
     """
     # filter the records based on the timein and timeout
     if timein and timeout:
-        return [x for x in record if timein < x[0] < timeout]
+        return [x for x in record if max(timein, min(x[0])) < x[0] < min(timeout, max(x[0]))]
 
     elif timein:
-        return [x for x in record if x[0] > timein]
+        return [x for x in record if x[0] > max(timein, min(x[0]))]
     
     elif timeout:
-        return [x for x in record if x[0] < timeout]
+        return [x for x in record if x[0] < min(timeout, max(x[0]))]
 
 
 def get_max(attr: str, record: List[Tuple]) -> float:

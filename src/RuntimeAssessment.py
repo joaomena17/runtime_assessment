@@ -210,8 +210,6 @@ class RuntimeAssessment:
                 req.setdefault('timeout', None)
                 req.setdefault('tolerance', 0.05)
                 req.setdefault('comparator', "=")
-                req.setdefault('min', None)
-                req.setdefault('max', None)
 
             # TODO: create an assessment object for this topic
 
@@ -224,8 +222,6 @@ class RuntimeAssessment:
                 req.setdefault('timeout', None)
                 req.setdefault('tolerance', 0.05)
                 req.setdefault('comparator', "=")
-                req.setdefault('min', None)
-                req.setdefault('max', None)
 
             # TODO: create an assessment object for this metric
         
