@@ -1,6 +1,8 @@
 import yaml
 from importlib import import_module
 from typing import List, Tuple, Any, Union
+from AssessmentObjects import AssessmentObject
+import concurrent.futures
 
 
 def check_value_params(value: float, target: Union[float, Tuple], tolerance: float = 0.05, comp: str = "=") -> bool:
@@ -279,3 +281,12 @@ def get_min(attr: str, record: List[Tuple]) -> float:
         raise ValueError(f"Attribute '{attr}' is not numeric.")
     
     return min([x[1].__getattribute__(attr) for x in record])
+
+
+def run_assessment(assessment_object: AssessmentObject) -> bool:
+    try:
+        assessment_object.run()
+
+    except Exception as e:
+        assessment_object.logger.error(f"Assessment failed: {e}")
+        raise e

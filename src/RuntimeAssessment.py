@@ -13,6 +13,7 @@ from RuntimeAssessmentConfig import RuntimeAssessmentConfig
 from GlobalEvents import GlobalEvents
 from datetime import datetime
 from typing import List, Tuple, Any, Set, Union
+from AssessmentObjects import AssessmentObject
     
 
 class RuntimeAssessment:
@@ -30,7 +31,7 @@ class RuntimeAssessment:
         # Declare setup variables
         self.target_node = config.target_node
         self.topics = config.topics
-        self.rate = config.rate
+        self.rate = rospy.Rate(config.rate)
         self.logger_path = config.logger_path
         self.topic_pairs = {}
         self.start_time = float()
@@ -212,6 +213,8 @@ class RuntimeAssessment:
                 req.setdefault('comparator', "=")
 
             # TODO: create an assessment object for this topic
+            assessment_object = AssessmentObject(runtime_assessment=self, topic_name=topic, message_class=message_class, requirements=requirements)
+            self.assessment_pool.append(assessment_object)
 
         # Global metric assessments
         for metric, requirements in self.specifications["metric"].items():
@@ -224,4 +227,18 @@ class RuntimeAssessment:
                 req.setdefault('comparator', "=")
 
             # TODO: create an assessment object for this metric
-        
+    
+
+    def run_assessments_concurrently(self):
+        """Manages the concurrent execution of assessment objects."""
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # Submit all assessment objects to the thread pool
+            futures = [executor.submit(run_assessment, obj) for obj in self.assessment_pool]
+            
+            # Wait for all the futures to complete
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    future.result()
+                except Exception as e:
+                    self.logger.error(f"Assessment failed: {e}")
+                    break

@@ -6,14 +6,14 @@ from std_msgs.msg import String
 import rospy
 from GlobalEvents import GlobalEvents
 from utils import *
-from RuntimeAssessment import RuntimeAssessment
+#from RuntimeAssessment import RuntimeAssessment
 
 
 class AssessmentObject:
     """
     Class to create an assessment object.
     """
-    def __init__(self, runtime_assessment: RuntimeAssessment, topic_name: str, message_class: Any, requirements: List) -> None:
+    def __init__(self, runtime_assessment, topic_name: str, message_class: Any, requirements: List) -> None:
         # runtime assessment hooks and variables
         self.node = runtime_assessment.node
         self.rate = runtime_assessment.rate
@@ -25,10 +25,10 @@ class AssessmentObject:
         self.frequency = 0
 
         # assessment object variables
-        self.latest_global_event = Tuple()
+        self.latest_global_event = tuple()
         self.topic_name = topic_name
         self.message_class = message_class
-        self.specifications = requirements
+        self.requirements = requirements
         self.latest_topic_event = self.message_class()
         self.topic_event_record = []
         
@@ -267,7 +267,8 @@ class AssessmentObject:
             else:
                 self.logger.error(f"Requirement {req} FAILED - Invalid mode.")
         
-        return True
+        # shutdow ros
+        rospy.signal_shutdown("Assessment ended.")
     
 
     def run(self) -> None:
@@ -276,10 +277,10 @@ class AssessmentObject:
         :return: None
         """
 
-        # check for new events
-        if self.latest_global_event != self.runtime_assessment.global_event_queue[-1]:
-            self.latest_global_event = self.runtime_assessment.global_event_queue[-1]
-            self.global_event_callback(self.latest_global_event)
-
         while not rospy.is_shutdown():
+            # check for new events
+            if self.latest_global_event != self.runtime_assessment.global_event_queue[-1]:
+                self.latest_global_event = self.runtime_assessment.global_event_queue[-1]
+                self.global_event_callback(self.latest_global_event)
+
             self.rate.sleep()
