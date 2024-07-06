@@ -204,11 +204,11 @@ class AssessmentObject:
             timeout = req["timeout"]
 
             if mode == "exists":
-                record = filter_by_time(self.topic_event_record, timein, timeout)
+                record_filtered = filter_by_time(self.topic_event_record, timein, timeout)
 
                 try:
 
-                    if not self.exists_on_record(target, self.topic_event_record, ordered=temporal_consistency, tolerance=tolerance, timein=timein, timeout=timeout):
+                    if not self.exists_on_record(target, record_filtered, ordered=temporal_consistency, tolerance=tolerance, timein=timein, timeout=timeout):
                         self.logger.info(f"Requirement {i+1} of {len(self.requirements)} FAILED.")
                         continue
 
@@ -226,10 +226,10 @@ class AssessmentObject:
 
 
             elif mode == "absent":
-                record = filter_by_time(self.topic_event_record, timein, timeout)
+                record_filtered = filter_by_time(self.topic_event_record, timein, timeout)
 
                 try:
-                    if self.exists_on_record(target, self.topic_event_record, ordered=temporal_consistency, tolerance=tolerance):
+                    if self.exists_on_record(target, record_filtered, ordered=temporal_consistency, tolerance=tolerance):
                         self.logger.info(f"Requirement {i+1} of {len(self.requirements)} FAILED.")
                         continue
 
@@ -246,19 +246,19 @@ class AssessmentObject:
                     return
 
             elif mode == "max" or mode == "min" or mode == "average":
-                record = filter_by_time(self.topic_event_record, timein, timeout)
+                record_filtered = filter_by_time(self.topic_event_record, timein, timeout)
 
                 attr, tgt_val = list(target[0].items())[0]
 
                 # get the value based on the mode
                 if mode == "max":
-                    value = get_max(attr, self.topic_event_record)
+                    value = get_max(attr, record_filtered)
 
                 elif mode == "min":
-                    value = get_min(attr, self.topic_event_record)
+                    value = get_min(attr, record_filtered)
 
                 elif mode == "average":
-                    value = get_average_value(attr, self.topic_event_record)
+                    value = get_average_value(attr, record_filtered)
                     
                 if isinstance(tgt_val, list):
                     # default values to None

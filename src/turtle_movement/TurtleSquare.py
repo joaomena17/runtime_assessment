@@ -11,7 +11,9 @@ class TurtleSquare(TurtleShape):
 
 
     def pub_checkpoint(self, i):
-        self.checkpoint_publisher.publish(f"reached {i}")
+        data = f"reached {i}"
+        self.checkpoint_publisher.publish(data)
+        print(f"Published checkpoint {i} with data {data}")
 
 
     def move(self, speed=1, length=5): 

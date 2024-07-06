@@ -29,7 +29,7 @@ specifications:
 
   - topic: turtle1/pose
     timein: 1.0
-    timeout: 60.0
+    timeout: 30.0
     target:
       - { x: 10, y: 5.5 }
 
@@ -42,13 +42,13 @@ specifications:
 
   - topic: turtle1/cmd_vel
     mode: average
-    comparator: ">"
+    comparator: >
     target: 
       - linear.x: 1.5
 
   - topic: turtle1/cmd_vel
     mode: max
-    comparator: "<"
+    comparator: <
     target:
       - angular.z: 0.5
 
@@ -61,12 +61,7 @@ specifications:
 
   - topic: turtle1/checkpoint
     target:
-      - data: "reached 1"
-      - data: "reached 2"
-      - data: "reached 3"
-      - data: "reached 4"
-
-  - topic: turtle1/checkpoint
-    mode: metric
-    target:
-      - frequency: 60.0
+      - data: reached 1
+      - data: reached 2
+      - data: reached 3
+      - data: reached 4

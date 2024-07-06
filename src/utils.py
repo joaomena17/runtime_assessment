@@ -32,7 +32,7 @@ def check_value_params(value: float, target: Union[float, Tuple], tolerance: flo
             return comparison_dict[comp]()
 
         else:
-            raise ValueError("Invalid comparison operator.")
+            raise ValueError(f"Invalid comparison operator: {comp}.")
     
     else:
         raise ValueError("Invalid target.")
