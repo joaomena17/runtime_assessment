@@ -4,6 +4,7 @@
 import os
 import sys
 import rospy
+import asyncio
 import rosnode
 import logging
 import rostopic
@@ -47,7 +48,9 @@ class RuntimeAssessment:
         self.previous_nodes: Set[str] = set()
         self.is_paused = False
         self.is_running = False
+        self.assessment_over = False
         self.global_event_queue = []
+        self.lock = asyncio.Lock() # Added lock for thread-safe access to global_event_queue
 
         # Logger setup
         self.logger = logging.getLogger(f"RuntimeAssessment.{self.target_node}")
@@ -87,16 +90,18 @@ class RuntimeAssessment:
         self.assessment_object_allocator()
     
 
-    def publish_global_event(self, event: GlobalEvents) -> None:
+    async def publish_global_event(self, event: GlobalEvents) -> None:
         """
         Publish a global event.
         :param event: GlobalEvents
         """
-        self.global_event_queue.append((datetime.now(), event))
+        async with self.lock:
+            self.global_event_queue.append((datetime.now(), event))
+            print(f"Published Global Event: {event}.\n")
 
-        # keep the queue size at maximum 10 events
-        if len(self.global_event_queue) > 10:
-            self.global_event_queue.pop(0)
+            # keep the queue size at maximum 10 events
+            if len(self.global_event_queue) > 10:
+                self.global_event_queue.pop(0)
 
 
     def run(self) -> None:
@@ -104,35 +109,47 @@ class RuntimeAssessment:
         Run the assessment.
         :return: None
         """
-        while not rospy.is_shutdown():
+        asyncio.run(self.async_run())
+
+
+    async def async_run(self) -> None:
+        """
+        Run the assessment.
+        :return: None
+        """
+        assessment_tasks = [asyncio.create_task(obj.run()) for obj in self.assessment_pool]
+
+        while not rospy.is_shutdown() and not self.assessment_over:
             target_running: bool = self.target_node in rosnode.get_node_names()
 
             if self.is_running:
                 if self.is_paused:
                     if not target_running:
                         self.logger.info("Target node removed. Finishing assessment...")
-                        self.publish_global_event(GlobalEvents.NODE_REMOVED)
+                        await self.publish_global_event(GlobalEvents.NODE_REMOVED)
+                        await asyncio.gather(*assessment_tasks)
                         self.end_assessment()
                     else:
                         self.logger.info("Assessment paused.")
-                        self.publish_global_event(GlobalEvents.ASSESSMENT_PAUSED)
-                        rospy.sleep(1.0)
-
+                        await self.publish_global_event(GlobalEvents.ASSESSMENT_PAUSED)
+                        await asyncio.sleep(1.0)
                 else:
                     if not target_running:
                         self.logger.info("Target node removed. Finishing assessment...")
-                        self.publish_global_event(GlobalEvents.NODE_REMOVED)
+                        await self.publish_global_event(GlobalEvents.NODE_REMOVED)
+                        await asyncio.gather(*assessment_tasks)
                         self.end_assessment()
                     else:
-                        self.rate.sleep()   
-                
+                        await asyncio.sleep(1.0)
             else:
                 if target_running:
                     self.logger.info("Target node started. Initializing assessment...")
-                    self.publish_global_event(GlobalEvents.NODE_ADDED)
+                    await self.publish_global_event(GlobalEvents.NODE_ADDED)
                     self.start_assessment()
                 else:
-                    self.rate.sleep()
+                    await asyncio.sleep(1.0)
+
+        
 
     
     def pause(self):
@@ -176,10 +193,11 @@ class RuntimeAssessment:
         rospy.signal_shutdown("Assessment stopped.")
         self.is_running = False
         self.is_paused = False
-        self.total_execution_time = self.get_time_elapsed()
+        self.execution_time = self.get_time_elapsed()
         self.logger.info("Assessment ended.")
         self.logger.info(f"Execution time: {self.execution_time} seconds.")
         self.logger.info("----------------- END OF ASSESSMENT -----------------\n")
+        self.assessment_over = True
 
 
     def get_time_elapsed(self) -> float:
@@ -215,6 +233,7 @@ class RuntimeAssessment:
             # TODO: create an assessment object for this topic
             assessment_object = AssessmentObject(runtime_assessment=self, topic_name=topic, message_class=message_class, requirements=requirements)
             self.assessment_pool.append(assessment_object)
+            self.logger.info(f"Assessment object created for topic '{topic}' with message class {message_class} and {len(requirements)} requirements.")
 
         # Global metric assessments
         for metric, requirements in self.specifications["metric"].items():
@@ -227,18 +246,3 @@ class RuntimeAssessment:
                 req.setdefault('comparator', "=")
 
             # TODO: create an assessment object for this metric
-    
-
-    def run_assessments_concurrently(self):
-        """Manages the concurrent execution of assessment objects."""
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            # Submit all assessment objects to the thread pool
-            futures = [executor.submit(run_assessment, obj) for obj in self.assessment_pool]
-            
-            # Wait for all the futures to complete
-            for future in concurrent.futures.as_completed(futures):
-                try:
-                    future.result()
-                except Exception as e:
-                    self.logger.error(f"Assessment failed: {e}")
-                    break

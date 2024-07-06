@@ -7,7 +7,7 @@ from rospy.exceptions import ROSInterruptException
 if __name__ == '__main__':
     try:
         turtle_square = TurtleRectangle()
-        turtle_square.move()
+        turtle_square.move(speed=1)
 
     except ROSInterruptException:
         print("Interrupting execution...")

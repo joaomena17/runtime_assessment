@@ -1,7 +1,6 @@
 import yaml
 from importlib import import_module
 from typing import List, Tuple, Any, Union
-from AssessmentObjects import AssessmentObject
 import concurrent.futures
 
 
@@ -57,7 +56,7 @@ def unordered_points(target: List[dict], record: List[Tuple], tolerance: float, 
     for pos in target:
 
         # check if the attributes are present in the recorded data
-        for attr in pos.keys():
+        for attr in list(pos.keys()):
             if not has_attribute(records[0][1], attr):
                 raise ValueError(f"Attribute '{attr}' not found in record.")
         
@@ -71,9 +70,9 @@ def unordered_points(target: List[dict], record: List[Tuple], tolerance: float, 
             for attr, val in pos.items():
                 # apply tolerance for numerical values
                 if is_numeric(val):
-                    check = abs(data.__getattribute__(attr) - val) < (val * tolerance)
+                    check = abs(get_attribute(data, attr) - val) < (val * tolerance)
                 else:
-                    check = data.__getattribute__(attr) == val
+                    check = get_attribute(data, attr) == val
                 
                 if not check:
                     break
@@ -97,6 +96,7 @@ def ordered_points(target: List, record: List[Tuple], tolerance: float = 0.05, t
     """
 
     # copy the records and sort based on the first element of the timestamp
+    print(record)
     records = sorted(record, key=lambda x: x[0])
 
     # filter the records based on the timein and timeout
@@ -106,7 +106,7 @@ def ordered_points(target: List, record: List[Tuple], tolerance: float = 0.05, t
     for pos in target:
 
         # check if the attributes are present in the recorded data
-        for attr in pos.keys():
+        for attr in list(pos.keys()):
             if not has_attribute(record[0][1], attr):
                 raise ValueError(f"Attribute '{attr}' not found in record.")
             
@@ -121,9 +121,9 @@ def ordered_points(target: List, record: List[Tuple], tolerance: float = 0.05, t
 
                 # apply tolerance for numerical values
                 if is_numeric(val):
-                    check = abs(data.__getattribute__(attr) - val) < (val * tolerance)
+                    check = abs(get_attribute(data, attr) - val) < (val * tolerance)
                 else:
-                    check = data.__getattribute__(attr) == val
+                    check = get_attribute(data, attr) == val
 
             if check:
                 # remove all positions that occured before the current one from search space
@@ -182,12 +182,13 @@ def get_average_value(attr: str, record: Tuple) -> float:
     if not has_attribute(record[0][1], attr):
         raise ValueError(f"Attribute '{attr}' not found in record.")
     
-    if not is_numeric(record[0][1].__getattribute__(attr)):
+    print(record[0][1])
+    if not is_numeric(get_attribute(record[0][1], attr)):
         raise ValueError(f"Attribute '{attr}' is not numeric.")
 
     total = 0
     for _, data in record:
-        total += data.__getattribute__(attr)
+        total += get_attribute(data, attr)
 
     return total / len(record)
 
@@ -228,6 +229,19 @@ def has_attribute(obj: Any, attribute_path: str) -> bool:
     return True    
 
 
+def get_attribute(obj, attribute):
+    try:
+        # Split the attribute by '.' to handle nested attributes
+        attrs = attribute.split('.')
+        value = obj
+        for attr in attrs:
+            value = getattr(value, attr)
+        return value
+        
+    except AttributeError:
+        return f"Attribute '{attribute}' not found in the object."
+
+
 def filter_by_time(record: List[Tuple], timein=None, timeout=None) -> List[Tuple]:
     """
     Filter records based on the time range.
@@ -259,10 +273,10 @@ def get_max(attr: str, record: List[Tuple]) -> float:
     if not has_attribute(record[0][1], attr):
         raise ValueError(f"Attribute '{attr}' not found in record.")
 
-    if not is_numeric(record[0][1].__getattribute__(attr)):
+    if not is_numeric(get_attribute(record[0][1], attr)):
         raise ValueError(f"Attribute '{attr}' is not numeric.")
         
-    return max([x[1].__getattribute__(attr) for x in record])
+    return max([get_attribute(x[1], attr) for x in record])
 
 
 def get_min(attr: str, record: List[Tuple]) -> float:
@@ -277,16 +291,7 @@ def get_min(attr: str, record: List[Tuple]) -> float:
     if not has_attribute(record[0][1], attr):
         raise ValueError(f"Attribute '{attr}' not found in record.")
     
-    if not is_numeric(record[0][1].__getattribute__(attr)):
+    if not is_numeric(get_attribute(record[0][1], attr)):
         raise ValueError(f"Attribute '{attr}' is not numeric.")
     
-    return min([x[1].__getattribute__(attr) for x in record])
-
-
-def run_assessment(assessment_object: AssessmentObject) -> bool:
-    try:
-        assessment_object.run()
-
-    except Exception as e:
-        assessment_object.logger.error(f"Assessment failed: {e}")
-        raise e
+    return min([get_attribute(x[1], attr) for x in record])

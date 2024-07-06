@@ -71,23 +71,24 @@ class RuntimeAssessmentConfig:
         """
 
         setup = self.config["setup"]
+        keys = set(setup.keys())
 
-        if "target_node" not in setup:
+        if "target_node" not in keys:
             raise ValueError("Missing 'target_node' in setup")
         else:
             self.target_node = setup["target_node"]
 
-        if "topics" not in setup:
+        if "topics" not in keys:
             self.topics = []
         else:
             self.topics = setup["topics"]
 
-        if "rate" not in setup:
+        if "rate" not in keys:
             self.rate = 10
         else:
             self.rate = setup["rate"]
         
-        if "logger_path" not in setup:
+        if "logger_path" not in keys:
             self.logger_path = "log"
         else:
             self.logger_path = setup["logger_path"]

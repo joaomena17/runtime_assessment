@@ -1,4 +1,5 @@
 # Description: Contains the classes for the assessment objects.
+import asyncio
 from typing import Any, List, Tuple, Union
 from turtlesim.msg import Pose
 from geometry_msgs.msg import Twist
@@ -6,6 +7,7 @@ from std_msgs.msg import String
 import rospy
 from GlobalEvents import GlobalEvents
 from utils import *
+import logging
 #from RuntimeAssessment import RuntimeAssessment
 
 
@@ -17,10 +19,20 @@ class AssessmentObject:
         # runtime assessment hooks and variables
         self.node = runtime_assessment.node
         self.rate = runtime_assessment.rate
-        self.logger = runtime_assessment.logger
+        self.over = False
+
+        self.logger = logging.getLogger(f"AssessmentObject.{topic_name}")
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        
+        # Set formatter to include logger's name
+        formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(formatter)
+        
+        self.logger.addHandler(console_handler)
+
         self.runtime_assessment = runtime_assessment
         self.start_time = 0
-        self.execution_time = 0
         self.number_of_messages = 0
         self.frequency = 0
 
@@ -32,6 +44,8 @@ class AssessmentObject:
         self.latest_topic_event = self.message_class()
         self.topic_event_record = []
         
+        self.logger.info(f"Assessment object created for topic {self.topic_name}.")
+
 
     def global_event_callback(self, event: Tuple) -> None:
         """
@@ -41,17 +55,25 @@ class AssessmentObject:
         """
         # map the event to the data
         data = event[1]
+        self.logger.info(f"Global event received: {data}")
 
         if data == GlobalEvents.NODE_ADDED:
+            self.logger.info("Handling NODE_ADDED event.")
             self.start_assessment()
 
         elif data == GlobalEvents.ASSESSMENT_PAUSED:
+            self.logger.info("Handling ASSESSMENT_PAUSED event.")
             self.remove_subscribers()
 
         elif data == GlobalEvents.ASSESSMENT_RESUMED:
+            self.logger.info("Handling ASSESSMENT_RESUMED event.")
             self.create_subscribers()
 
         elif data == GlobalEvents.NODE_REMOVED:
+            self.logger.info("Handling NODE_REMOVED event.")
+            self.number_of_messages = len(self.topic_event_record)
+            self.logger.info(f"Number of events recorded: {self.number_of_messages}")
+            self.frequency = frequency_of_events(self.topic_event_record)
             self.end_assessment()
 
         else:
@@ -90,6 +112,9 @@ class AssessmentObject:
         if isinstance(data, self.message_class):
             self.save_record(self.topic_event_record, data)
             self.latest_topic_event = data
+            if len(self.topic_event_record) == 1:
+                self.logger.info(f"Receiving data.")
+        
         
         else:
             self.logger.error(f"Invalid message type received: {type(data)}")
@@ -100,6 +125,7 @@ class AssessmentObject:
         Start the assessment.
         :return: None
         """
+        self.start_time = rospy.get_time()
         self.create_subscribers()
 
 
@@ -108,8 +134,11 @@ class AssessmentObject:
         End the assessment.
         :return: None
         """
-        self.remove_subscribers()
+        self.logger.info("Checking requirements.")
         self.check_requirements()
+        self.logger.info("Unregistering subscriber.")
+        self.remove_subscribers()
+        self.over = True
 
     
     def save_record(self, target: List, data: Any) -> None:
@@ -124,7 +153,15 @@ class AssessmentObject:
 
         except Exception as e:
             self.logger.error(e)
-            
+
+
+    def get_time_elapsed(self) -> float:
+        """
+        Get the time elapsed since the assessment started.
+        :return: float
+        """
+        return rospy.get_time() - self.start_time
+
     
     def exists_on_record(self, target: List, record: List[Tuple], ordered: bool = False, tolerance: float = 0.05, timein=None, timeout=None) -> bool:
         """
@@ -133,7 +170,7 @@ class AssessmentObject:
         :param tolerance: float
         :return: bool
         """
-        
+        self.logger.info(f"Record length at exists: {len(record)}")
         if ordered:
             try:
                 return ordered_points(target, record, tolerance, timein, timeout)
@@ -166,52 +203,56 @@ class AssessmentObject:
 
             if mode == "exists":
                 try:
+
                     if not self.exists_on_record(target, self.topic_event_record, ordered=temporal_consistency, tolerance=tolerance, timein=timein, timeout=timeout):
                         self.logger.info(f"Requirement {req} FAILED.")
-                        break
+                        continue
 
                     else:
                         self.logger.info(f"Requirement {req} PASSED.")
+                        continue
 
                 except ValueError as e:
                     self.logger.error(f"Requirement {req} FAILED - {e}")
-                    break
+                    return
                 
                 except Exception as e:
                     self.logger.error(f"Requirement {req} FAILED - {e}")
-                    break
+                    return
 
 
             elif mode == "absent":
                 try:
                     if self.exists_on_record(target, self.topic_event_record, ordered=temporal_consistency, tolerance=tolerance):
                         self.logger.info(f"Requirement {req} FAILED.")
-                        break
+                        continue
 
                     else:
                         self.logger.info(f"Requirement {req} PASSED.")
+                        continue
 
                 except ValueError as e:
                     self.logger.error(f"Requirement {req} FAILED - {e}")
-                    break
+                    return
                 
                 except Exception as e:
                     self.logger.error(f"Requirement {req} FAILED - {e}")
-                    break
+                    return
 
             elif mode == "max" or mode == "min" or mode == "average":
                 record = filter_by_time(self.topic_event_record, timein, timeout)
-                attr, tgt_val = target
+
+                attr, tgt_val = list(target[0].items())[0]
 
                 # get the value based on the mode
                 if mode == "max":
-                    value = get_max(attr, record)
+                    value = get_max(attr, self.topic_event_record)
 
                 elif mode == "min":
-                    value = get_min(attr, record)
+                    value = get_min(attr, self.topic_event_record)
 
                 elif mode == "average":
-                    value = get_average_value(attr, record)
+                    value = get_average_value(attr, self.topic_event_record)
                     
                 if isinstance(tgt_val, list):
                     # default values to None
@@ -222,7 +263,7 @@ class AssessmentObject:
                         for k, v in limit.items():
                             if not is_numeric(v):
                                 self.logger.error(f"Requirement {req} FAILED - Invalid target value.")
-                                break
+                                return
 
                             if k == "min":
                                 min_val = v
@@ -230,18 +271,21 @@ class AssessmentObject:
                                 max_val = v
                             else:
                                 self.logger.error(f"Requirement {req} FAILED - Invalid target value.")
-                                break
+                                return
   
                     try:
 
                         if check_value_params(value, (min_val, max_val), comparator, tolerance):
                             self.logger.info(f"Requirement {req} PASSED.")
+                            continue
 
                         else:
                             self.logger.info(f"Requirement {req} FAILED.")
+                            continue
 
                     except Exception as e:
                         self.logger.error(f"Requirement {req} FAILED - {e}")
+                        return
 
 
                 elif is_numeric(tgt_val):
@@ -249,15 +293,19 @@ class AssessmentObject:
                     try:
                         if check_value_params(value, tgt_val, comparator, tolerance):
                             self.logger.info(f"Requirement {req} PASSED.")
+                            continue
 
                         else:
                             self.logger.info(f"Requirement {req} FAILED.")
+                            continue
 
                     except Exception as e:
                         self.logger.error(f"Requirement {req} FAILED - {e}")
+                        return
                 
                 else:
                     self.logger.error(f"Requirement {req} FAILED - Invalid target value.")
+                    return
             
 
             elif mode == "metric":
@@ -266,21 +314,25 @@ class AssessmentObject:
 
             else:
                 self.logger.error(f"Requirement {req} FAILED - Invalid mode.")
+                return
+            
+        return
         
-        # shutdow ros
-        rospy.signal_shutdown("Assessment ended.")
     
 
-    def run(self) -> None:
+    async def run(self) -> None:
         """
         Run the assessment.
         :return: None
         """
+        while not rospy.is_shutdown() and not self.over:
 
-        while not rospy.is_shutdown():
             # check for new events
-            if self.latest_global_event != self.runtime_assessment.global_event_queue[-1]:
-                self.latest_global_event = self.runtime_assessment.global_event_queue[-1]
-                self.global_event_callback(self.latest_global_event)
+            async with self.runtime_assessment.lock:
+                if len(self.runtime_assessment.global_event_queue) != 0:
+                    if self.latest_global_event != self.runtime_assessment.global_event_queue[-1]:
+                        self.latest_global_event = self.runtime_assessment.global_event_queue[-1]
+                        self.logger.info(f"New global event detected: {self.latest_global_event}")
+                        self.global_event_callback(self.latest_global_event)
 
-            self.rate.sleep()
+            await asyncio.sleep(self.rate.sleep_dur.to_sec())
