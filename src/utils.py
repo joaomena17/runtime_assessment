@@ -49,22 +49,19 @@ def unordered_points(target: List[dict], record: List[Tuple], tolerance: float, 
     :return: bool
     """
 
-    # filter the records based on the timein and timeout
-    records = filter_by_time(record, timein, timeout)
-
     # look for every event in any order
     for pos in target:
 
         # check if the attributes are present in the recorded data
         for attr in list(pos.keys()):
-            if not has_attribute(records[0][1], attr):
+            if not has_attribute(record[0][1], attr):
                 raise ValueError(f"Attribute '{attr}' not found in record.")
         
         # default found state to false
         found = False
 
         # traverse the records and check if all attributes of the target's current position are present
-        for element in records:
+        for element in record:
             _, data = element
 
             for attr, val in pos.items():
@@ -96,18 +93,14 @@ def ordered_points(target: List, record: List[Tuple], tolerance: float = 0.05, t
     """
 
     # copy the records and sort based on the first element of the timestamp
-    print(record)
     records = sorted(record, key=lambda x: x[0])
-
-    # filter the records based on the timein and timeout
-    records = filter_by_time(records, timein, timeout)
 
     # look for the positions in order
     for pos in target:
 
         # check if the attributes are present in the recorded data
         for attr in list(pos.keys()):
-            if not has_attribute(record[0][1], attr):
+            if not has_attribute(records[0][1], attr):
                 raise ValueError(f"Attribute '{attr}' not found in record.")
             
         # default found state to false
@@ -162,7 +155,7 @@ def frequency_of_events(events: List[Tuple]) -> float:
     :param events: List[Tuple]
     :return: float
     """
-    if events:
+    if len(events):
         total = 0
         for i in range(len(events) - 1):
             total += time_between_events(events[i], events[i + 1])
@@ -182,7 +175,6 @@ def get_average_value(attr: str, record: Tuple) -> float:
     if not has_attribute(record[0][1], attr):
         raise ValueError(f"Attribute '{attr}' not found in record.")
     
-    print(record[0][1])
     if not is_numeric(get_attribute(record[0][1], attr)):
         raise ValueError(f"Attribute '{attr}' is not numeric.")
 
@@ -210,8 +202,7 @@ def import_message_type(topic_tuple: Tuple[str, str]) -> Any:
         return message_class
     
     except (AttributeError, ModuleNotFoundError) as e:
-        print(f"Failed to import message type for topic '{topic}': {e}")
-        return None
+        raise ValueError(f"Failed to import message type for topic '{topic}': {e}")
     
 
 def has_attribute(obj: Any, attribute_path: str) -> bool:
@@ -251,14 +242,16 @@ def filter_by_time(record: List[Tuple], timein=None, timeout=None) -> List[Tuple
     :return: List[Tuple]
     """
     # filter the records based on the timein and timeout
-    if timein and timeout:
-        return [x for x in record if max(timein, min(x[0])) < x[0] < min(timeout, max(x[0]))]
+    if timein is not None and timeout is not None:
+        return [x for x in record if timein < x[0] < timeout]
 
-    elif timein:
-        return [x for x in record if x[0] > max(timein, min(x[0]))]
+    elif timein is not None:
+        return [x for x in record if x[0] > timein]
     
-    elif timeout:
-        return [x for x in record if x[0] < min(timeout, max(x[0]))]
+    elif timeout is not None:
+        return [x for x in record if x[0] < timeout]
+    
+    return record
 
 
 def get_max(attr: str, record: List[Tuple]) -> float:

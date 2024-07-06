@@ -2,7 +2,7 @@ setup:
   target_node: /snake_game
   logger_path: /home/joaomena/catkin_ws/src/runtime_assessment/src/log
   topics:
-    turtle1/pose: geometry_msgs/Pose  
+    turtle1/pose: turtlesim/Pose  
     turtle1/cmd_vel: geometry_msgs/Twist  
     turtle1/checkpoint: std_msgs/String
 # rate: 10
@@ -13,25 +13,32 @@ specifications:
   - topic: turtle1/pose
     mode: exists # default value // or max, min, exists, absent, average, metric
     target:
-      - { position.x: 10, position.y: 5.5 }
-      - { position.x: 10, position.y: 10.5 }
-      - { position.x: 5, position.y: 10.5 }
-      - { position.x: 5, position.y: 5.5 }
+      - { x: 10, y: 5.5 }
+      - { x: 5.5, y: 5.5 }
+      - { x: 5.5, y: 10.5 }
+      - { x: 10, y: 10.5 }
 
   - topic: turtle1/pose
     temporal_consistency: true  
     tolerance: 0.05
     target:
-      - { position.x: 10, position.y: 5.5 }
-      - { position.x: 5.5, position.y: 5.5 }
-      - { position.x: 5.5, position.y: 10.5 }
-      - { position.x: 10, position.y: 10.5 }
+      - { x: 10, y: 5.5 }
+      - { x: 5.5, y: 5.5 }
+      - { x: 5.5, y: 10.5 }
+      - { x: 10, y: 10.5 }
 
   - topic: turtle1/pose
-    timein: 10.0
-    timeout: 20.0
+    timein: 1.0
+    timeout: 60.0
     target:
-      - { position.x: 10, position.y: 5.5 }
+      - { x: 10, y: 5.5 }
+
+  - topic: turtle1/pose
+    mode: absent
+    timein: 0.0
+    timeout: 1.0
+    target:
+      - { x: 20, y: 15.5 }
 
   - topic: turtle1/cmd_vel
     mode: average

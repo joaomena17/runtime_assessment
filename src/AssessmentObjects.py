@@ -55,7 +55,7 @@ class AssessmentObject:
         """
         # map the event to the data
         data = event[1]
-        self.logger.info(f"Global event received: {data}")
+        self.logger.info(f"Global event received: {data.name}")
 
         if data == GlobalEvents.NODE_ADDED:
             self.logger.info("Handling NODE_ADDED event.")
@@ -78,6 +78,7 @@ class AssessmentObject:
 
         else:
             self.logger.error(f"Invalid global event received: {data}")
+            self.over = True
 
 
     def create_subscribers(self) -> None:
@@ -87,6 +88,7 @@ class AssessmentObject:
         """
         try:
             self.sub = rospy.Subscriber(self.topic_name, self.message_class, self.handle_sub, queue_size=10)
+            self.logger.info(f"Subscriber created for topic {self.topic_name}.")
 
         except Exception as e:
             self.logger.error(e)
@@ -139,6 +141,7 @@ class AssessmentObject:
         self.logger.info("Unregistering subscriber.")
         self.remove_subscribers()
         self.over = True
+        self.logger.info("Assessment ended.")
 
     
     def save_record(self, target: List, data: Any) -> None:
@@ -170,7 +173,6 @@ class AssessmentObject:
         :param tolerance: float
         :return: bool
         """
-        self.logger.info(f"Record length at exists: {len(record)}")
         if ordered:
             try:
                 return ordered_points(target, record, tolerance, timein, timeout)
@@ -192,7 +194,7 @@ class AssessmentObject:
         :return: bool
         """
 
-        for req in self.requirements:
+        for i, req in enumerate(self.requirements):
             mode = req["mode"]
             target = req["target"]
             tolerance = req["tolerance"]
@@ -202,41 +204,45 @@ class AssessmentObject:
             timeout = req["timeout"]
 
             if mode == "exists":
+                record = filter_by_time(self.topic_event_record, timein, timeout)
+
                 try:
 
                     if not self.exists_on_record(target, self.topic_event_record, ordered=temporal_consistency, tolerance=tolerance, timein=timein, timeout=timeout):
-                        self.logger.info(f"Requirement {req} FAILED.")
+                        self.logger.info(f"Requirement {i+1} of {len(self.requirements)} FAILED.")
                         continue
 
                     else:
-                        self.logger.info(f"Requirement {req} PASSED.")
+                        self.logger.info(f"Requirement {i+1} of {len(self.requirements)} PASSED.")
                         continue
 
                 except ValueError as e:
-                    self.logger.error(f"Requirement {req} FAILED - {e}")
+                    self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - {e}")
                     return
                 
                 except Exception as e:
-                    self.logger.error(f"Requirement {req} FAILED - {e}")
+                    self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - {e}")
                     return
 
 
             elif mode == "absent":
+                record = filter_by_time(self.topic_event_record, timein, timeout)
+
                 try:
                     if self.exists_on_record(target, self.topic_event_record, ordered=temporal_consistency, tolerance=tolerance):
-                        self.logger.info(f"Requirement {req} FAILED.")
+                        self.logger.info(f"Requirement {i+1} of {len(self.requirements)} FAILED.")
                         continue
 
                     else:
-                        self.logger.info(f"Requirement {req} PASSED.")
+                        self.logger.info(f"Requirement {i+1} of {len(self.requirements)} PASSED.")
                         continue
 
                 except ValueError as e:
-                    self.logger.error(f"Requirement {req} FAILED - {e}")
+                    self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - {e}")
                     return
                 
                 except Exception as e:
-                    self.logger.error(f"Requirement {req} FAILED - {e}")
+                    self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - {e}")
                     return
 
             elif mode == "max" or mode == "min" or mode == "average":
@@ -262,7 +268,7 @@ class AssessmentObject:
                     for limit in tgt_val:
                         for k, v in limit.items():
                             if not is_numeric(v):
-                                self.logger.error(f"Requirement {req} FAILED - Invalid target value.")
+                                self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - Invalid target value.")
                                 return
 
                             if k == "min":
@@ -270,21 +276,21 @@ class AssessmentObject:
                             elif k == "max":
                                 max_val = v
                             else:
-                                self.logger.error(f"Requirement {req} FAILED - Invalid target value.")
+                                self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - Invalid target value.")
                                 return
   
                     try:
 
                         if check_value_params(value, (min_val, max_val), comparator, tolerance):
-                            self.logger.info(f"Requirement {req} PASSED.")
+                            self.logger.info(f"Requirement {i+1} of {len(self.requirements)} PASSED.")
                             continue
 
                         else:
-                            self.logger.info(f"Requirement {req} FAILED.")
+                            self.logger.info(f"Requirement {i+1} of {len(self.requirements)} FAILED.")
                             continue
 
                     except Exception as e:
-                        self.logger.error(f"Requirement {req} FAILED - {e}")
+                        self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - {e}")
                         return
 
 
@@ -292,19 +298,19 @@ class AssessmentObject:
 
                     try:
                         if check_value_params(value, tgt_val, comparator, tolerance):
-                            self.logger.info(f"Requirement {req} PASSED.")
+                            self.logger.info(f"Requirement {i+1} of {len(self.requirements)} PASSED.")
                             continue
 
                         else:
-                            self.logger.info(f"Requirement {req} FAILED.")
+                            self.logger.info(f"Requirement {i+1} of {len(self.requirements)} FAILED.")
                             continue
 
                     except Exception as e:
-                        self.logger.error(f"Requirement {req} FAILED - {e}")
+                        self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - {e}")
                         return
                 
                 else:
-                    self.logger.error(f"Requirement {req} FAILED - Invalid target value.")
+                    self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - Invalid target value.")
                     return
             
 
@@ -313,7 +319,7 @@ class AssessmentObject:
                 pass
 
             else:
-                self.logger.error(f"Requirement {req} FAILED - Invalid mode.")
+                self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - Invalid mode.")
                 return
             
         return
@@ -332,7 +338,6 @@ class AssessmentObject:
                 if len(self.runtime_assessment.global_event_queue) != 0:
                     if self.latest_global_event != self.runtime_assessment.global_event_queue[-1]:
                         self.latest_global_event = self.runtime_assessment.global_event_queue[-1]
-                        self.logger.info(f"New global event detected: {self.latest_global_event}")
                         self.global_event_callback(self.latest_global_event)
 
             await asyncio.sleep(self.rate.sleep_dur.to_sec())
