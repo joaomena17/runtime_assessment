@@ -29,13 +29,13 @@ class TurtleShape:
         self.direction.linear.x = 0.0
         self.pub.publish(self.direction)
     
-    def rotate_half_pi(self, speed=0.5):
+    def rotate_half_pi(self, speed=0.25):
         target_angle = self.pose.theta + math.pi/2
 
         if target_angle > math.pi:
             target_angle -= 2 * math.pi
 
-        while abs(target_angle - self.pose.theta) > 0.001:
+        while abs(target_angle - self.pose.theta) > 0.002:
             self.direction.linear.x = 0.0
 
             if abs(target_angle - self.pose.theta) <= 0.05:

@@ -33,8 +33,11 @@ class AssessmentObject:
 
         self.runtime_assessment = runtime_assessment
         self.start_time = 0
-        self.number_of_messages = 0
-        self.frequency = 0
+
+        self.metrics = {}
+        
+        self.metrics['number_of_messages'] = 0
+        self.metrics['frequency'] = 0
 
         # assessment object variables
         self.latest_global_event = tuple()
@@ -71,10 +74,10 @@ class AssessmentObject:
 
         elif data == GlobalEvents.NODE_REMOVED:
             self.logger.info("Handling NODE_REMOVED event.")
-            self.number_of_messages = len(self.topic_event_record)
-            self.logger.info(f"Number of events recorded: {self.number_of_messages}")
-            self.frequency = frequency_of_events(self.topic_event_record)
-            self.logger.info(f"Frequency of events: {self.frequency} Hz")
+            self.metrics['number_of_messages'] = len(self.topic_event_record)
+            self.logger.info(f"Number of events recorded: {self.metrics['number_of_messages']}")
+            self.metrics['frequency'] = frequency_of_events(self.topic_event_record)
+            self.logger.info(f"Frequency of events: {self.metrics['frequency']} Hz")
             self.end_assessment()
 
         else:
@@ -246,7 +249,8 @@ class AssessmentObject:
                     self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - {e}")
                     return
 
-            elif mode == "max" or mode == "min" or mode == "average":
+
+            elif mode == "max" or mode == "min" or mode == "average" or mode == "metric":
                 record_filtered = filter_by_time(self.topic_event_record, timein, timeout)
 
                 attr, tgt_val = list(target[0].items())[0]
@@ -260,6 +264,13 @@ class AssessmentObject:
 
                 elif mode == "average":
                     value = get_average_value(attr, record_filtered)
+
+                elif mode == "metric":
+                    if attr in list(self.metrics.keys()):
+                        value = self.metrics[attr]
+                    else:
+                        self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - Invalid metric.")
+                        return
                     
                 if isinstance(tgt_val, list):
                     # default values to None
@@ -315,13 +326,6 @@ class AssessmentObject:
                     return
             
 
-            elif mode == "metric":
-                # TODO: Implement metric mode
-                pass
-
-            else:
-                self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - Invalid mode.")
-                return
             
         return
         

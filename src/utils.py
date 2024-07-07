@@ -18,7 +18,7 @@ def check_value_params(value: float, target: Union[float, Tuple], tolerance: flo
         if min_target < value < max_target:
             return True
         
-    elif isinstance(target, float):
+    elif is_numeric(target):
         comparison_dict = {
             "=": lambda: target*(1 - tolerance) < value < target*(1 + tolerance),
             ">": lambda: value > target,
@@ -35,7 +35,7 @@ def check_value_params(value: float, target: Union[float, Tuple], tolerance: flo
             raise ValueError(f"Invalid comparison operator: {comp}.")
     
     else:
-        raise ValueError("Invalid target.")
+        raise ValueError(f"Invalid target: {target}.")
         
     return False
 

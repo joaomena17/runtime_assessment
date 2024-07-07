@@ -6,7 +6,6 @@ setup:
     turtle1/cmd_vel: geometry_msgs/Twist  
     turtle1/checkpoint: std_msgs/String
 # rate: 10
-# logger_path: log
 
 specifications:
   - topic: turtle1/pose
@@ -50,6 +49,12 @@ specifications:
     target:
       - { x: 10, y: 10 }
 
+  - topic: turtle1/pose
+    mode: metric
+    comparator: ">"
+    target:
+      - number_of_messages: 1000
+
   - topic: turtle1/cmd_vel
     mode: average
     comparator: "<"
@@ -74,6 +79,13 @@ specifications:
     comparator: "!="
     target:
       - linear.x: 0.1
+
+  - topic: turtle1/cmd_vel
+    mode: metric
+    target:
+      - frequency:
+        - min: 55
+        - max: 65
 
 
   - topic: turtle1/checkpoint
@@ -101,3 +113,9 @@ specifications:
     mode: absent
     target:
       - data: "reached 5"
+  
+  - topic: turtle1/checkpoint
+    mode: metric
+    comparator: "<"
+    target:
+      - number_of_messages: 5
