@@ -67,7 +67,6 @@ specifications:
 ############################################
 
   - metric: "number_of_messages"
-    timeout: 60.0
     target: 
       min: 30.0
       max: 40.0

@@ -36,9 +36,13 @@ class RuntimeAssessment:
         self.logger_path = config.logger_path
         self.topic_pairs = {}
         self.start_time = float()
-        self.execution_time = float()
-        self.number_of_messages = 0 # TODO: implement
-        self.frequency = 0 # TODO: implement
+
+        self.metrics = {}
+        self.metrics['execution_time'] = float()
+        self.metrics['number_of_messages'] = 0 # TODO: implement
+        self.metrics['frequency'] = 0 # TODO: implement
+
+        self.metrics_assessment_pool = []
 
 
         # Get specifications
@@ -125,6 +129,7 @@ class RuntimeAssessment:
             if self.is_running:
                 if self.is_paused:
                     if not target_running:
+                        self.metrics['execution_time'] = self.get_time_elapsed()
                         self.logger.info("Target node removed. Finishing assessment...")
                         await self.publish_global_event(GlobalEvents.NODE_REMOVED)
                         await asyncio.gather(*assessment_tasks)
@@ -135,6 +140,7 @@ class RuntimeAssessment:
                         await asyncio.sleep(1.0)
                 else:
                     if not target_running:
+                        self.metrics['execution_time'] = self.get_time_elapsed()
                         self.logger.info("Target node removed. Finishing assessment...")
                         await self.publish_global_event(GlobalEvents.NODE_REMOVED)
                         await asyncio.gather(*assessment_tasks)
@@ -190,12 +196,11 @@ class RuntimeAssessment:
         End the assessment.
         :return: None
         """
+        self.metric_assessment()
         rospy.signal_shutdown("Assessment stopped.")
         self.is_running = False
         self.is_paused = False
-        self.execution_time = self.get_time_elapsed()
-        self.logger.info("Assessment ended.")
-        self.logger.info(f"Execution time: {self.execution_time} seconds.")
+        self.logger.info(f"Execution time: {self.metrics['execution_time']} seconds.")
         self.logger.info("----------------- END OF ASSESSMENT -----------------\n")
         self.assessment_over = True
 
@@ -230,13 +235,13 @@ class RuntimeAssessment:
                 req.setdefault('tolerance', 0.05)
                 req.setdefault('comparator', "=")
 
-            # TODO: create an assessment object for this topic
             assessment_object = AssessmentObject(runtime_assessment=self, topic_name=topic, message_class=message_class, requirements=requirements)
             self.assessment_pool.append(assessment_object)
             self.logger.info(f"Assessment object created for topic '{topic}' with message class {message_class} and {len(requirements)} requirements.")
 
         # Global metric assessments
         for metric, requirements in self.specifications["metric"].items():
+            for req in requirements:
                 # set default values for missing keys
                 req.setdefault('mode', "total")
                 req.setdefault('temporal_consistency', False)
@@ -245,4 +250,28 @@ class RuntimeAssessment:
                 req.setdefault('tolerance', 0.05)
                 req.setdefault('comparator', "=")
 
-            # TODO: create an assessment object for this metric
+            self.metrics_assessment_pool.append({'metric': metric, 'requirements': requirements})
+
+
+    def metric_assessment(self):
+        """
+        Assess the metrics.
+        :return: None
+        """
+        for metric in self.metrics_assessment_pool:
+            if metric['metric'] in list(self.metrics.keys()):
+                self.logger.info(f"Assessing metric '{metric['metric']}' with {len(metric['requirements'])} requirements.")
+                
+                for i, req in enumerate(metric['requirements']):
+                    target = req['target']
+                    tolerance = req['tolerance']
+                    comparator = req['comparator']
+
+                    if check_value_params(self.metrics[metric['metric']], target, tolerance, comparator):
+                        self.logger.info(f"Requirement {i+1} of {len(metric['requirements'])} PASSED.")
+
+                    else:
+                        self.logger.info(f"Requirement {i+1} of {len(metric['requirements'])} FAILED.")
+
+            else:
+                self.logger.error(f"Metric '{metric['metric']}' not found.")

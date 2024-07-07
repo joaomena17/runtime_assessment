@@ -119,3 +119,7 @@ specifications:
     comparator: "<"
     target:
       - number_of_messages: 5
+
+  - metric: "execution_time"
+    comparator: "<"
+    target: 60.0
