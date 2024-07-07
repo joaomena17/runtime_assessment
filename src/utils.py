@@ -49,9 +49,11 @@ def unordered_points(target: List[dict], record: List[Tuple], tolerance: float, 
     :return: bool
     """
 
+    if len(target) == 0 or len(record) == 0:
+        raise ValueError("Target or record is empty.")
+
     # look for every event in any order
     for pos in target:
-
         # check if the attributes are present in the recorded data
         for attr in list(pos.keys()):
             if not has_attribute(record[0][1], attr):
@@ -63,13 +65,14 @@ def unordered_points(target: List[dict], record: List[Tuple], tolerance: float, 
         # traverse the records and check if all attributes of the target's current position are present
         for element in record:
             _, data = element
+            
 
             for attr, val in pos.items():
                 # apply tolerance for numerical values
                 if is_numeric(val):
                     check = abs(get_attribute(data, attr) - val) < (val * tolerance)
                 else:
-                    check = get_attribute(data, attr) == val
+                    check = str(get_attribute(data, attr)).strip() == str(val).strip()
                 
                 if not check:
                     break
@@ -116,7 +119,7 @@ def ordered_points(target: List, record: List[Tuple], tolerance: float = 0.05, t
                 if is_numeric(val):
                     check = abs(get_attribute(data, attr) - val) < (val * tolerance)
                 else:
-                    check = get_attribute(data, attr) == val
+                    check = str(get_attribute(data, attr)).strip() == str(val).strip()
 
             if check:
                 # remove all positions that occured before the current one from search space
@@ -155,7 +158,7 @@ def frequency_of_events(events: List[Tuple]) -> float:
     :param events: List[Tuple]
     :return: float
     """
-    if len(events):
+    if len(events) > 0:
         total = 0
         for i in range(len(events) - 1):
             total += time_between_events(events[i], events[i + 1])
@@ -169,7 +172,7 @@ def get_average_value(attr: str, record: Tuple) -> float:
     Update the average velocity.
     :return: float
     """
-    if not record:
+    if len(record) == 0:
         raise ValueError("No records found.")
     
     if not has_attribute(record[0][1], attr):

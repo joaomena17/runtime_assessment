@@ -74,6 +74,7 @@ class AssessmentObject:
             self.number_of_messages = len(self.topic_event_record)
             self.logger.info(f"Number of events recorded: {self.number_of_messages}")
             self.frequency = frequency_of_events(self.topic_event_record)
+            self.logger.info(f"Frequency of events: {self.frequency} Hz")
             self.end_assessment()
 
         else:
@@ -141,7 +142,7 @@ class AssessmentObject:
         self.logger.info("Unregistering subscriber.")
         self.remove_subscribers()
         self.over = True
-        self.logger.info("Assessment ended.")
+        self.logger.info("Assessment ended.\n")
 
     
     def save_record(self, target: List, data: Any) -> None:
@@ -297,7 +298,7 @@ class AssessmentObject:
                 elif is_numeric(tgt_val):
 
                     try:
-                        if check_value_params(value, tgt_val, comparator, tolerance):
+                        if check_value_params(value, tgt_val, tolerance, comparator):
                             self.logger.info(f"Requirement {i+1} of {len(self.requirements)} PASSED.")
                             continue
 

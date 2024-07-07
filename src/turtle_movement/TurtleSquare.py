@@ -18,14 +18,20 @@ class TurtleSquare(TurtleShape):
 
     def move(self, speed=1, length=5): 
         print("Starting position: ", self.pose.x, self.pose.y)
+        c = 1
         for _ in range(2):
             self.move_forward(speed=speed, distance=length)
-            print("Position after side", _ + 1, ":", self.pose.x, self.pose.y)
-            self.pub_checkpoint(_+1)
+            print("Position after side", c, ":", self.pose.x, self.pose.y)
+            self.pub_checkpoint(c)
+            c += 1
+
             self.rotate_half_pi(speed=0.5)
-            print("Position after rotation", _ + 1, ":", self.pose.x, self.pose.y)
+            print("Position after rotation", c, ":", self.pose.x, self.pose.y)
+            
             self.move_forward(speed=speed, distance=length)
-            print("Position after side", _ + 2, ":", self.pose.x, self.pose.y)
+            print("Position after side", c, ":", self.pose.x, self.pose.y)
+            self.pub_checkpoint(c)
+            c += 1
+
             self.rotate_half_pi(speed=0.5)
-            print("Position after rotation", _ + 2, ":", self.pose.x, self.pose.y)
-            self.pub_checkpoint(_ + 2)
+            print("Position after rotation", c, ":", self.pose.x, self.pose.y)

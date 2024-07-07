@@ -9,14 +9,13 @@ setup:
 # logger_path: log
 
 specifications:
-
   - topic: turtle1/pose
     mode: exists # default value // or max, min, exists, absent, average, metric
     target:
       - { x: 10, y: 5.5 }
-      - { x: 5.5, y: 5.5 }
-      - { x: 5.5, y: 10.5 }
       - { x: 10, y: 10.5 }
+      - { x: 5, y: 10.5 }
+      - { x: 5, y: 5.5 }
 
   - topic: turtle1/pose
     temporal_consistency: true  
@@ -35,22 +34,33 @@ specifications:
 
   - topic: turtle1/pose
     mode: absent
-    timein: 0.0
-    timeout: 1.0
+    timein: 10.0
     target:
-      - { x: 20, y: 15.5 }
+      - { x: 10, y: 5.5 }
+
+  - topic: turtle1/pose
+    timein: 5.0
+    timeout: 15.0
+    target:
+      - { x: 10, y: 8 }
+
+  - topic: turtle1/pose
+    mode: absent
+    timeout: 5.0
+    target:
+      - { x: 10, y: 10 }
 
   - topic: turtle1/cmd_vel
     mode: average
-    comparator: >
+    comparator: "<"
     target: 
       - linear.x: 1.5
 
   - topic: turtle1/cmd_vel
     mode: max
-    comparator: <
+    comparator: ">"
     target:
-      - angular.z: 0.5
+      - angular.z: 0.2
 
   - topic: turtle1/cmd_vel
     mode: max
@@ -59,9 +69,35 @@ specifications:
         - min: 0.5
         - max: 1.5
 
+  - topic: turtle1/cmd_vel
+    mode: min
+    comparator: "!="
+    target:
+      - linear.x: 0.1
+
+
   - topic: turtle1/checkpoint
     target:
-      - data: reached 1
-      - data: reached 2
-      - data: reached 3
-      - data: reached 4
+      - data: "reached 1"
+      - data: "reached 2"
+      - data: "reached 3"
+      - data: "reached 4"
+
+  - topic: turtle1/checkpoint
+    temporal_consistency: true
+    target:
+      - data: "reached 1"
+      - data: "reached 2"
+      - data: "reached 3"
+      - data: "reached 4"
+
+  - topic: turtle1/checkpoint
+    timein: 2
+    timeout: 6
+    target:
+      - data: "reached 1"
+
+  - topic: turtle1/checkpoint
+    mode: absent
+    target:
+      - data: "reached 5"
