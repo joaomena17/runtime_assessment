@@ -181,14 +181,12 @@ class AssessmentObject:
             try:
                 return ordered_points(target, record, tolerance, timein, timeout)
             except Exception as e:
-                self.logger.error(e)
-                return False
+                raise e
         else:
             try:
                 return unordered_points(target, record, tolerance, timein, timeout)
             except Exception as e:
-                self.logger.error(e)
-                return False
+                raise e
     
 
     def check_requirements(self) -> bool:
@@ -209,7 +207,6 @@ class AssessmentObject:
 
             if mode == "exists":
                 record_filtered = filter_by_time(self.topic_event_record, timein, timeout)
-
                 try:
 
                     if not self.exists_on_record(target, record_filtered, ordered=temporal_consistency, tolerance=tolerance, timein=timein, timeout=timeout):

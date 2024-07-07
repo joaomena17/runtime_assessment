@@ -129,8 +129,6 @@ class RuntimeAssessment:
             if self.is_running:
                 if self.is_paused:
                     if not target_running:
-                        self.metrics['execution_time'] = self.get_time_elapsed()
-                        self.logger.info("Target node removed. Finishing assessment...")
                         await self.publish_global_event(GlobalEvents.NODE_REMOVED)
                         await asyncio.gather(*assessment_tasks)
                         self.end_assessment()
@@ -140,8 +138,7 @@ class RuntimeAssessment:
                         await asyncio.sleep(1.0)
                 else:
                     if not target_running:
-                        self.metrics['execution_time'] = self.get_time_elapsed()
-                        self.logger.info("Target node removed. Finishing assessment...")
+                        
                         await self.publish_global_event(GlobalEvents.NODE_REMOVED)
                         await asyncio.gather(*assessment_tasks)
                         self.end_assessment()
@@ -196,11 +193,24 @@ class RuntimeAssessment:
         End the assessment.
         :return: None
         """
+        # compute global metrics
+        self.metrics['execution_time'] = self.get_time_elapsed()
+        self.metrics['number_of_messages'] = self.aggregate_message_counts()
+        self.metrics['frequency'] = self.metrics['number_of_messages'] / self.metrics['execution_time']
+
+        # log global metrics
+        self.logger.info("Target node removed. Finishing assessment...")
+        self.logger.info(f"Execution time: {self.metrics['execution_time']} seconds.")
+        self.logger.info(f"Total number of messages: {self.metrics['number_of_messages']}")
+        self.logger.info(f"Frequency: {self.metrics['frequency']}")
+
+        # assess global metrics requirements
         self.metric_assessment()
+
+        # shutdown node and finish exection
         rospy.signal_shutdown("Assessment stopped.")
         self.is_running = False
         self.is_paused = False
-        self.logger.info(f"Execution time: {self.metrics['execution_time']} seconds.")
         self.logger.info("----------------- END OF ASSESSMENT -----------------\n")
         self.assessment_over = True
 
@@ -275,3 +285,12 @@ class RuntimeAssessment:
 
             else:
                 self.logger.error(f"Metric '{metric['metric']}' not found.")
+
+
+    def aggregate_message_counts(self) -> int:
+        """
+        Aggregate the number of messages from all assessment objects.
+        :return: int
+        """
+        return sum(obj.metrics['number_of_messages'] for obj in self.assessment_pool)
+         

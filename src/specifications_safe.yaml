@@ -5,9 +5,17 @@ setup:
     turtle1/pose: turtlesim/Pose  
     turtle1/cmd_vel: geometry_msgs/Twist  
     turtle1/checkpoint: std_msgs/String
-    tf: tf2_msgs/TFMessage
+    tf: tf2_msgs/TFMessage 
+    
 
 specifications:
+  - topic: tf
+    mode: exists
+    target:
+      - { "transforms[0].transform.translation.x": 10, "transforms[0].transform.translation.y": 5.5 }
+      - { "transforms[0].transform.translation.x": 10, "transforms[0].transform.translation.y": 10.5 }
+      - { "transforms[0].transform.translation.x": 5, "transforms[0].transform.translation.y": 10.5 }
+      - { "transforms[0].transform.translation.x": 5, "transforms[0].transform.translation.y": 5.5 }
 
   - topic: tf
     temporal_consistency: true  
@@ -31,6 +39,12 @@ specifications:
       - { "transforms[0].transform.translation.x": 10, "transforms[0].transform.translation.y": 5.5 }
 
   - topic: tf
+    timein: 5.0
+    timeout: 15.0
+    target:
+      - { "transforms[0].transform.translation.x": 10, "transforms[0].transform.translation.y": 8 }
+
+  - topic: tf
     mode: absent
     timeout: 5.0
     target:
@@ -42,15 +56,13 @@ specifications:
     target:
       - number_of_messages: 10
 
-
   - topic: turtle1/pose
     mode: exists # default value // or max, min, exists, absent, average, metric
     target:
       - { x: 10, y: 5.5 }
-      - { x: 5.5, y: 5.5 }
-      - { x: 5.5, y: 10.5 }
       - { x: 10, y: 10.5 }
-
+      - { x: 5, y: 10.5 }
+      - { x: 5, y: 5.5 }
 
   - topic: turtle1/pose
     temporal_consistency: true  

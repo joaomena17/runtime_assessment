@@ -210,16 +210,27 @@ def import_message_type(topic_tuple: Tuple[str, str]) -> Any:
 
 def has_attribute(obj: Any, attribute_path: str) -> bool:
     """
-    Check if an object has an attribute (implicit or nested)
+    Check if an object has an attribute (implicit or nested), including support for indices.
     :param obj: Object to check
     :param attribute_path: Path to the attribute
     :return: True if the object has the nested attribute, False otherwise
     """
     current_object = obj
     for attr in attribute_path.split('.'):
-        if not hasattr(current_object, attr):
-            return False
-        current_object = getattr(current_object, attr)
+        if '[' in attr and ']' in attr:
+            # Handle list indices
+            attr, index = attr[:-1].split('[')
+            if not hasattr(current_object, attr):
+                return False
+            current_object = getattr(current_object, attr)
+            try:
+                current_object = current_object[int(index)]
+            except (IndexError, ValueError):
+                return False
+        else:
+            if not hasattr(current_object, attr):
+                return False
+            current_object = getattr(current_object, attr)
     return True    
 
 
@@ -229,11 +240,23 @@ def get_attribute(obj, attribute):
         attrs = attribute.split('.')
         value = obj
         for attr in attrs:
-            value = getattr(value, attr)
+            if '[' in attr and ']' in attr:
+                # Handle list indices
+                attr, index = attr[:-1].split('[')
+                value = get_attribute(value, attr)
+                value = value[int(index)]
+            else:
+                value = getattr(value, attr)
         return value
         
     except AttributeError:
-        return f"Attribute '{attribute}' not found in the object."
+        raise ValueError(f"Attribute '{attribute}' not found in the object {obj}.")
+    
+    except IndexError:
+        raise ValueError(f"Index '{attribute}' not found in the object.")
+    
+    except ValueError:
+        raise ValueError(f"Value '{attribute}' not found in the object.")
 
 
 def filter_by_time(record: List[Tuple], timein=None, timeout=None) -> List[Tuple]:
