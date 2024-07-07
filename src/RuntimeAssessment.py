@@ -207,8 +207,6 @@ class RuntimeAssessment:
         # assess global metrics requirements
         self.metric_assessment()
 
-        # shutdown node and finish exection
-        rospy.signal_shutdown("Assessment stopped.")
         self.is_running = False
         self.is_paused = False
         self.logger.info("----------------- END OF ASSESSMENT -----------------\n")
@@ -271,20 +269,71 @@ class RuntimeAssessment:
         for metric in self.metrics_assessment_pool:
             if metric['metric'] in list(self.metrics.keys()):
                 self.logger.info(f"Assessing metric '{metric['metric']}' with {len(metric['requirements'])} requirements.")
+
+            else:
+                self.logger.error(f"Metric '{metric['metric']}' not found.")
+                continue
                 
-                for i, req in enumerate(metric['requirements']):
+            for i, req in enumerate(metric['requirements']):
                     target = req['target']
                     tolerance = req['tolerance']
                     comparator = req['comparator']
 
-                    if check_value_params(self.metrics[metric['metric']], target, tolerance, comparator):
-                        self.logger.info(f"Requirement {i+1} of {len(metric['requirements'])} PASSED.")
+                    value = self.metrics[metric['metric']]
 
+                    if isinstance(target, list):
+                        # default values to None
+                        min_val = None
+                        max_val = None
+
+                        for limit in target:
+                            for k, v in limit.items():
+                                if not is_numeric(v):
+                                    self.logger.error(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED - Invalid target value.")
+                                    return
+
+                                if k == "min":
+                                    min_val = v
+                                elif k == "max":
+                                    max_val = v
+                                else:
+                                    self.logger.error(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED - Invalid target value.")
+                                    return
+
+                        try:
+
+                            if check_value_params(value, (min_val, max_val), comparator, tolerance):
+                                self.logger.info(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' PASSED.")
+                                continue
+
+                            else:
+                                self.logger.info(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED.")
+                                continue
+
+                        except Exception as e:
+                            self.logger.error(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED - {e}")
+                            return
+
+
+                    elif is_numeric(target):
+
+                        try:
+                            if check_value_params(value, target, tolerance, comparator):
+                                self.logger.info(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' PASSED.")
+                                continue
+
+                            else:
+                                self.logger.info(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED.")
+                                continue
+
+                        except Exception as e:
+                            self.logger.error(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED - {e}")
+                            return
+                    
                     else:
-                        self.logger.info(f"Requirement {i+1} of {len(metric['requirements'])} FAILED.")
+                        self.logger.error(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED - Invalid target value.")
+                        return
 
-            else:
-                self.logger.error(f"Metric '{metric['metric']}' not found.")
 
 
     def aggregate_message_counts(self) -> int:

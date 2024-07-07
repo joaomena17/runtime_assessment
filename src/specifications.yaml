@@ -158,3 +158,12 @@ specifications:
   - metric: "execution_time"
     comparator: "<"
     target: 60.0
+
+  - metric: "number_of_messages"
+    target:
+      - min: 1000
+      - max: 10000
+
+  - metric: "frequency"
+    comparator: ">"
+    target: 60
