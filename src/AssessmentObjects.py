@@ -1,14 +1,33 @@
 # Description: Contains the classes for the assessment objects.
 import asyncio
-from typing import Any, List, Tuple, Union
-from turtlesim.msg import Pose
-from geometry_msgs.msg import Twist
-from std_msgs.msg import String
 import rospy
 from GlobalEvents import GlobalEvents
 from utils import *
 import logging
-#from RuntimeAssessment import RuntimeAssessment
+
+
+def exists_on_record(target: List, record: List[Tuple], ordered: bool = False, tolerance: float = 0.05,
+                     timein=None, timeout=None) -> bool:
+    """
+    Check if certain points occur in a target record.
+    :param target: list
+    :param record: list
+    :param ordered: bool
+    :param tolerance: float
+    :param timein: float
+    :param timeout: float
+    :return: bool
+    """
+    if ordered:
+        try:
+            return ordered_points(target, record, tolerance, timein, timeout)
+        except Exception as e:
+            raise e
+    else:
+        try:
+            return unordered_points(target, record, tolerance, timein, timeout)
+        except Exception as e:
+            raise e
 
 
 class AssessmentObject:
@@ -17,49 +36,47 @@ class AssessmentObject:
     """
     def __init__(self, runtime_assessment, topic_name: str, message_class: Any, requirements: List) -> None:
         # runtime assessment hooks and variables
+        self.runtime_assessment = runtime_assessment
         self.node = runtime_assessment.node
         self.rate = runtime_assessment.rate
-        self.over = False
 
+        # Setup logger
         self.logger = logging.getLogger(f"AssessmentObject.{topic_name}")
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.INFO)
-        
-        # Set formatter to include logger's name
+
         formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
         console_handler.setFormatter(formatter)
-        
+
         self.logger.addHandler(console_handler)
 
-        self.runtime_assessment = runtime_assessment
+        # Assessment variables
         self.start_time = 0
-
-        self.metrics = {}
-        
-        self.metrics['number_of_messages'] = 0
-        self.metrics['frequency'] = 0
-
-        # assessment object variables
-        self.latest_global_event = tuple()
+        self.metrics = {'number_of_messages': float(), 'frequency': float()}
         self.topic_name = topic_name
         self.message_class = message_class
         self.requirements = requirements
-        self.latest_topic_event = self.message_class()
+        self.sub = None
         self.topic_event_record = []
-        
-        self.logger.info(f"Assessment object created for topic {self.topic_name}.")
 
+        # Initialize internal state variables
+        self.over = False
+        self.latest_global_event = tuple()
+        self.latest_topic_event = self.message_class()
+
+        self.logger.info(f"Assessment object created for topic {self.topic_name}.")
 
     def global_event_callback(self, event: Tuple) -> None:
         """
-        Callback for the global events subscriber.
-        :param data: GlobalEvents
+        Callback for the global events' subscriber.
+        :param event: GlobalEvents
         :return: None
         """
         # map the event to the data
         data = event[1]
         self.logger.info(f"Global event received: {data.name}")
 
+        # handle respective event
         if data == GlobalEvents.NODE_ADDED:
             self.logger.info("Handling NODE_ADDED event.")
             self.start_assessment()
@@ -73,17 +90,21 @@ class AssessmentObject:
             self.create_subscribers()
 
         elif data == GlobalEvents.NODE_REMOVED:
-            self.logger.info("Handling NODE_REMOVED event.")
+            # extract internal metrics
             self.metrics['number_of_messages'] = len(self.topic_event_record)
-            self.logger.info(f"Number of events recorded: {self.metrics['number_of_messages']}")
             self.metrics['frequency'] = frequency_of_events(self.topic_event_record)
+
+            # log the metrics
+            self.logger.info("Handling NODE_REMOVED event.")
+            self.logger.info(f"Number of events recorded: {self.metrics['number_of_messages']}")
             self.logger.info(f"Frequency of events: {self.metrics['frequency']} Hz")
+
+            # trigger end assessment procedure
             self.end_assessment()
 
         else:
             self.logger.error(f"Invalid global event received: {data}")
             self.over = True
-
 
     def create_subscribers(self) -> None:
         """
@@ -97,7 +118,6 @@ class AssessmentObject:
         except Exception as e:
             self.logger.error(e)
 
-    
     def remove_subscribers(self) -> None:
         """
         Remove the subscribers.
@@ -109,22 +129,21 @@ class AssessmentObject:
         except Exception as e:
             self.logger.error(e)
 
-
     def handle_sub(self, data) -> None:
         """
         Handle the subscribers.
         :return: None
         """
+        # Validate if the received message is of the expected data type
         if isinstance(data, self.message_class):
+            # Update record
             self.save_record(self.topic_event_record, data)
             self.latest_topic_event = data
             if len(self.topic_event_record) == 1:
                 self.logger.info(f"Receiving data.")
-        
-        
+
         else:
             self.logger.error(f"Invalid message type received: {type(data)}")
-
 
     def start_assessment(self) -> None:
         """
@@ -133,7 +152,6 @@ class AssessmentObject:
         """
         self.start_time = rospy.get_time()
         self.create_subscribers()
-
 
     def end_assessment(self) -> None:
         """
@@ -144,10 +162,11 @@ class AssessmentObject:
         self.check_requirements()
         self.logger.info("Unregistering subscriber.")
         self.remove_subscribers()
+
+        # Update internal state to indicate end of the assessment
         self.over = True
         self.logger.info("Assessment ended.\n")
 
-    
     def save_record(self, target: List, data: Any) -> None:
         """
         Save the data to the target list with a timestamp.
@@ -156,38 +175,18 @@ class AssessmentObject:
         :return: None
         """
         try:
+            # store a timestamped event of the data received
             target.append((self.get_time_elapsed(), data))
 
         except Exception as e:
             self.logger.error(e)
 
-
     def get_time_elapsed(self) -> float:
         """
-        Get the time elapsed since the assessment started.
+        Compute the time elapsed since the assessment started.
         :return: float
         """
         return rospy.get_time() - self.start_time
-
-    
-    def exists_on_record(self, target: List, record: List[Tuple], ordered: bool = False, tolerance: float = 0.05, timein=None, timeout=None) -> bool:
-        """
-        Check if certain points occur in a target record.
-        :param positions: List[Tuple]
-        :param tolerance: float
-        :return: bool
-        """
-        if ordered:
-            try:
-                return ordered_points(target, record, tolerance, timein, timeout)
-            except Exception as e:
-                raise e
-        else:
-            try:
-                return unordered_points(target, record, tolerance, timein, timeout)
-            except Exception as e:
-                raise e
-    
 
     def check_requirements(self) -> bool:
         """
@@ -209,20 +208,21 @@ class AssessmentObject:
                 record_filtered = filter_by_time(self.topic_event_record, timein, timeout)
                 try:
 
-                    if not self.exists_on_record(target, record_filtered, ordered=temporal_consistency, tolerance=tolerance, timein=timein, timeout=timeout):
-                        self.logger.info(f"Requirement {i+1} of {len(self.requirements)} FAILED.")
+                    if not exists_on_record(target, record_filtered, ordered=temporal_consistency,
+                                                 tolerance=tolerance, timein=timein, timeout=timeout):
+                        self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} FAILED.")
                         continue
 
                     else:
-                        self.logger.info(f"Requirement {i+1} of {len(self.requirements)} PASSED.")
+                        self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} PASSED.")
                         continue
 
                 except ValueError as e:
-                    self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - {e}")
+                    self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - {e}")
                     return
-                
+
                 except Exception as e:
-                    self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - {e}")
+                    self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - {e}")
                     return
 
 
@@ -230,20 +230,21 @@ class AssessmentObject:
                 record_filtered = filter_by_time(self.topic_event_record, timein, timeout)
 
                 try:
-                    if self.exists_on_record(target, record_filtered, ordered=temporal_consistency, tolerance=tolerance):
-                        self.logger.info(f"Requirement {i+1} of {len(self.requirements)} FAILED.")
+                    if exists_on_record(target, record_filtered, ordered=temporal_consistency,
+                                             tolerance=tolerance):
+                        self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} FAILED.")
                         continue
 
                     else:
-                        self.logger.info(f"Requirement {i+1} of {len(self.requirements)} PASSED.")
+                        self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} PASSED.")
                         continue
 
                 except ValueError as e:
-                    self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - {e}")
+                    self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - {e}")
                     return
-                
+
                 except Exception as e:
-                    self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - {e}")
+                    self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - {e}")
                     return
 
 
@@ -266,9 +267,9 @@ class AssessmentObject:
                     if attr in list(self.metrics.keys()):
                         value = self.metrics[attr]
                     else:
-                        self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - Invalid metric.")
+                        self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - Invalid metric.")
                         return
-                    
+
                 if isinstance(tgt_val, list):
                     # default values to None
                     min_val = None
@@ -277,7 +278,8 @@ class AssessmentObject:
                     for limit in tgt_val:
                         for k, v in limit.items():
                             if not is_numeric(v):
-                                self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - Invalid target value.")
+                                self.logger.error(
+                                    f"Requirement {i + 1} of {len(self.requirements)} FAILED - Invalid target value.")
                                 return
 
                             if k == "min":
@@ -285,21 +287,22 @@ class AssessmentObject:
                             elif k == "max":
                                 max_val = v
                             else:
-                                self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - Invalid target value.")
+                                self.logger.error(
+                                    f"Requirement {i + 1} of {len(self.requirements)} FAILED - Invalid target value.")
                                 return
-  
+
                     try:
 
                         if check_value_params(value, (min_val, max_val), comparator, tolerance):
-                            self.logger.info(f"Requirement {i+1} of {len(self.requirements)} PASSED.")
+                            self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} PASSED.")
                             continue
 
                         else:
-                            self.logger.info(f"Requirement {i+1} of {len(self.requirements)} FAILED.")
+                            self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} FAILED.")
                             continue
 
                     except Exception as e:
-                        self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - {e}")
+                        self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - {e}")
                         return
 
 
@@ -307,26 +310,22 @@ class AssessmentObject:
 
                     try:
                         if check_value_params(value, tgt_val, tolerance, comparator):
-                            self.logger.info(f"Requirement {i+1} of {len(self.requirements)} PASSED.")
+                            self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} PASSED.")
                             continue
 
                         else:
-                            self.logger.info(f"Requirement {i+1} of {len(self.requirements)} FAILED.")
+                            self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} FAILED.")
                             continue
 
                     except Exception as e:
-                        self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - {e}")
+                        self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - {e}")
                         return
-                
-                else:
-                    self.logger.error(f"Requirement {i+1} of {len(self.requirements)} FAILED - Invalid target value.")
-                    return
-            
 
-            
+                else:
+                    self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - Invalid target value.")
+                    return
+
         return
-        
-    
 
     async def run(self) -> None:
         """

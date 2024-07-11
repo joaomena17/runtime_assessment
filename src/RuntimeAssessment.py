@@ -7,15 +7,13 @@ import rospy
 import asyncio
 import rosnode
 import logging
-import rostopic
-import importlib
 from utils import *
 from RuntimeAssessmentConfig import RuntimeAssessmentConfig
 from GlobalEvents import GlobalEvents
 from datetime import datetime
-from typing import List, Tuple, Any, Set, Union
+from typing import Set
 from AssessmentObjects import AssessmentObject
-    
+
 
 class RuntimeAssessment:
     """
@@ -37,66 +35,78 @@ class RuntimeAssessment:
         self.topic_pairs = {}
         self.start_time = float()
 
-        self.metrics = {}
-        self.metrics['execution_time'] = float()
-        self.metrics['number_of_messages'] = 0 # TODO: implement
-        self.metrics['frequency'] = 0 # TODO: implement
+        self.metrics = {'execution_time': float(), 'number_of_messages': float(), 'frequency': float()}
 
         self.metrics_assessment_pool = []
-
 
         # Get specifications
         self.specifications = config.specifications
 
-        # Initialize internal variables
+        # Initialize internal state variables
         self.previous_nodes: Set[str] = set()
         self.is_paused = False
         self.is_running = False
         self.assessment_over = False
+
+        # Initialize queue for events that is accessed concurrently by the assessment objects
         self.global_event_queue = []
-        self.lock = asyncio.Lock() # Added lock for thread-safe access to global_event_queue
+
+        # Create lock for thread-safe access to the global_event_queue
+        self.lock = asyncio.Lock()
 
         # Logger setup
         self.logger = logging.getLogger(f"RuntimeAssessment.{self.target_node}")
 
+        # Get current date for file name generation
         current_date = datetime.now().strftime("%Y_%m_%d")
-        log_dir = os.path.join(self.logger_path, f"{self.target_node.split('/')[1]}_{current_date}")
-        os.makedirs(log_dir, exist_ok=True) 
 
-        # All Levels Handler
-        all_levels_handler = logging.FileHandler(os.path.join(log_dir, f"{self.target_node.split('/')[1]}_assessment.log"))
+        # Create target path if it does not exist
+        log_dir = os.path.join(self.logger_path, f"{self.target_node.split('/')[1]}_{current_date}")
+        os.makedirs(log_dir, exist_ok=True)
+
+        # Create general handler that logs all levels
+        all_levels_handler = logging.FileHandler(
+            os.path.join(log_dir, f"{self.target_node.split('/')[1]}_assessment.log"))
+
         all_levels_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         all_levels_handler.setFormatter(all_levels_formatter)
+
         self.logger.addHandler(all_levels_handler)
 
-        # INFO and Above Handler
-        info_handler = logging.FileHandler(os.path.join(log_dir, f"{self.target_node.split('/')[1]}_assessment_info.log"))
+        # Create handler for levels INFO and above
+        info_handler = logging.FileHandler(
+            os.path.join(log_dir, f"{self.target_node.split('/')[1]}_assessment_info.log"))
+
         info_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         info_handler.setFormatter(info_formatter)
         info_handler.setLevel(logging.INFO)
+
         self.logger.addHandler(info_handler)
 
-        # ERROR and Above Handler
-        error_handler = logging.FileHandler(os.path.join(log_dir, f"{self.target_node.split('/')[1]}_assessment_error.log"))
+        # Create handler for levels ERROR and above
+        error_handler = logging.FileHandler(
+            os.path.join(log_dir, f"{self.target_node.split('/')[1]}_assessment_error.log"))
+
         error_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         error_handler.setFormatter(error_formatter)
         error_handler.setLevel(logging.ERROR)
+
         self.logger.addHandler(error_handler)
 
         self.logger.info(" ------------ RUNTIME ASSESSMENT ------------ ")
 
-        # import message types
+        # import required message types for the assessments
         for topic in self.topics.items():
             self.topic_pairs[topic[0]] = import_message_type(topic)
 
-        # TODO: initialize assessment objects
+        # create an assessment pool and initialize assessment objects
         self.assessment_pool = []
         self.assessment_object_allocator()
-    
 
     async def publish_global_event(self, event: GlobalEvents) -> None:
         """
-        Publish a global event.
+        Publish a global event in a thread-safe way.
+        Enforce a size limit to the event queue.
         :param event: GlobalEvents
         """
         async with self.lock:
@@ -107,86 +117,60 @@ class RuntimeAssessment:
             if len(self.global_event_queue) > 10:
                 self.global_event_queue.pop(0)
 
-
     def run(self) -> None:
         """
-        Run the assessment.
+        Run the assessment asynchronously.
         :return: None
         """
         asyncio.run(self.async_run())
 
-
     async def async_run(self) -> None:
         """
-        Run the assessment.
+        Main loop that monitors the state of the target node and reacts to it.
+        Acts as a state machine for the global system.
+        # TODO: draw state-machine diagram
         :return: None
         """
+        #
         assessment_tasks = [asyncio.create_task(obj.run()) for obj in self.assessment_pool]
 
         while not rospy.is_shutdown() and not self.assessment_over:
             target_running: bool = self.target_node in rosnode.get_node_names()
 
+            # running state
             if self.is_running:
-                if self.is_paused:
-                    if not target_running:
-                        await self.publish_global_event(GlobalEvents.NODE_REMOVED)
-                        await asyncio.gather(*assessment_tasks)
-                        self.end_assessment()
-                    else:
-                        self.logger.info("Assessment paused.")
-                        await self.publish_global_event(GlobalEvents.ASSESSMENT_PAUSED)
-                        await asyncio.sleep(1.0)
+                # target stopped running event leads to ending the assessment
+                if not target_running:
+                    # push global event indicating new state to the assessment objects and wait for their conclusion
+                    await self.publish_global_event(GlobalEvents.NODE_REMOVED)
+                    await asyncio.gather(*assessment_tasks)
+                    self.end_assessment()
                 else:
-                    if not target_running:
-                        
-                        await self.publish_global_event(GlobalEvents.NODE_REMOVED)
-                        await asyncio.gather(*assessment_tasks)
-                        self.end_assessment()
-                    else:
-                        await asyncio.sleep(1.0)
+                    await asyncio.sleep(self.rate.sleep_dur.to_sec())
+
+            # idle state
             else:
+                # target stopped running event leads to ending the assessment
                 if target_running:
-                    self.logger.info("Target node started. Initializing assessment...")
+                    # push global event indicating new state to the assessment objects
                     await self.publish_global_event(GlobalEvents.NODE_ADDED)
                     self.start_assessment()
+                # sleep at the specified rate until the target node is started
                 else:
-                    await asyncio.sleep(1.0)
-
-        
-
-    
-    def pause(self):
-        """
-        Pause the assessment.
-        :return: None
-        """
-        if self.is_running:
-            self.is_paused = True
-            self.logger.info("Assessment paused.")
-
-
-    def resume(self):
-        """
-        Resume the assessment.
-        :return: None
-        """
-        if self.is_paused:
-            self.is_paused = False
-            self.is_running = True
-            self.publish_global_event(GlobalEvents.ASSESSMENT_RESUMED)
-            self.logger.info("Assessment resumed.")
-
+                    await asyncio.sleep(self.rate.sleep_dur.to_sec())
 
     def start_assessment(self) -> None:
         """
         Start the assessment.
         :return: None
         """
+        # record start time of the assessment
         self.start_time = rospy.get_time()
+
+        # update internal state
         self.is_paused = False
         self.is_running = True
-        self.logger.info("Assessment started.")
-
+        self.logger.info("Target node started. Initializing assessment...")
 
     def end_assessment(self) -> None:
         """
@@ -207,34 +191,32 @@ class RuntimeAssessment:
         # assess global metrics requirements
         self.metric_assessment()
 
+        # update internal state
         self.is_running = False
         self.is_paused = False
         self.logger.info("----------------- END OF ASSESSMENT -----------------\n")
         self.assessment_over = True
 
-
     def get_time_elapsed(self) -> float:
         """
-        Get the time elapsed since the assessment started.
+        Compute the time elapsed since the assessment started.
         :return: float
         """
         return rospy.get_time() - self.start_time
-    
 
-    def assessment_object_allocator(self):
+    def assessment_object_allocator(self) -> None:
         """
         Allocate assessment objects based on the requirements
-        :param requirements: A dictionary of requirements
-        :return: A dictionary of assessment objects
+        :return: None
         """
 
         # Topic assessments
         for topic, requirements in self.specifications["topic"].items():
+            # Map the corresponding message class
+            message_class = self.topic_pairs[topic]
 
-            # Parameters to create the assessment object
-            message_class = self.topic_pairs[topic]            
-
-            for req in requirements:   
+            # set default values to missing parameters
+            for req in requirements:
                 # set default values for missing keys
                 req.setdefault('mode', "exists")
                 req.setdefault('temporal_consistency', False)
@@ -243,12 +225,18 @@ class RuntimeAssessment:
                 req.setdefault('tolerance', 0.05)
                 req.setdefault('comparator', "=")
 
-            assessment_object = AssessmentObject(runtime_assessment=self, topic_name=topic, message_class=message_class, requirements=requirements)
+            # initialize the assessment object for the current topic
+            assessment_object = AssessmentObject(runtime_assessment=self, topic_name=topic, message_class=message_class,
+                                                 requirements=requirements)
+
+            # add the initialized object to the assessment pool
             self.assessment_pool.append(assessment_object)
-            self.logger.info(f"Assessment object created for topic '{topic}' with message class {message_class} and {len(requirements)} requirements.")
+            self.logger.info(
+                f"Assessment object created for topic '{topic}' with message class {message_class} and {len(requirements)} requirements.")
 
         # Global metric assessments
         for metric, requirements in self.specifications["metric"].items():
+            # set default values to missing parameters
             for req in requirements:
                 # set default values for missing keys
                 req.setdefault('mode', "total")
@@ -258,88 +246,98 @@ class RuntimeAssessment:
                 req.setdefault('tolerance', 0.05)
                 req.setdefault('comparator', "=")
 
+            # append restructured dictionary of each metric assessment to assessment pool
             self.metrics_assessment_pool.append({'metric': metric, 'requirements': requirements})
-
 
     def metric_assessment(self):
         """
-        Assess the metrics.
+        Assess the global metrics.
         :return: None
         """
+        # iterate all metric assessments scheduled
         for metric in self.metrics_assessment_pool:
+            # validate desired metric assessment
             if metric['metric'] in list(self.metrics.keys()):
-                self.logger.info(f"Assessing metric '{metric['metric']}' with {len(metric['requirements'])} requirements.")
+                self.logger.info(
+                    f"Assessing metric '{metric['metric']}' with {len(metric['requirements'])} requirements.")
 
             else:
                 self.logger.error(f"Metric '{metric['metric']}' not found.")
                 continue
-                
+
+            # assess all requirements for current metric
             for i, req in enumerate(metric['requirements']):
-                    target = req['target']
-                    tolerance = req['tolerance']
-                    comparator = req['comparator']
+                target = req['target']
+                tolerance = req['tolerance']
+                comparator = req['comparator']
 
-                    value = self.metrics[metric['metric']]
+                value = self.metrics[metric['metric']]
 
-                    if isinstance(target, list):
-                        # default values to None
-                        min_val = None
-                        max_val = None
+                # handle assessment value of type list
+                if isinstance(target, list):
+                    # default range values to None
+                    min_val = None
+                    max_val = None
 
-                        for limit in target:
-                            for k, v in limit.items():
-                                if not is_numeric(v):
-                                    self.logger.error(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED - Invalid target value.")
-                                    return
+                    # iterate assessment value parameters
+                    for limit in target:
+                        for k, v in limit.items():
+                            # validate param
+                            if not is_numeric(v):
+                                self.logger.error(
+                                    f"Requirement {i + 1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED - Invalid target value.")
+                                return
 
-                                if k == "min":
-                                    min_val = v
-                                elif k == "max":
-                                    max_val = v
-                                else:
-                                    self.logger.error(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED - Invalid target value.")
-                                    return
-
-                        try:
-
-                            if check_value_params(value, (min_val, max_val), comparator, tolerance):
-                                self.logger.info(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' PASSED.")
-                                continue
-
+                            if k == "min":
+                                min_val = v
+                            elif k == "max":
+                                max_val = v
                             else:
-                                self.logger.info(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED.")
-                                continue
+                                self.logger.error(
+                                    f"Requirement {i + 1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED - Invalid target value.")
+                                return
 
-                        except Exception as e:
-                            self.logger.error(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED - {e}")
-                            return
+                    # perform the check and log the results
+                    try:
+                        if check_value_params(value, (min_val, max_val), comparator, tolerance):
+                            self.logger.info(
+                                f"Requirement {i + 1} of {len(metric['requirements'])} of metric '{metric['metric']}' PASSED.")
+                            continue
+                        else:
+                            self.logger.info(
+                                f"Requirement {i + 1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED.")
+                            continue
 
-
-                    elif is_numeric(target):
-
-                        try:
-                            if check_value_params(value, target, tolerance, comparator):
-                                self.logger.info(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' PASSED.")
-                                continue
-
-                            else:
-                                self.logger.info(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED.")
-                                continue
-
-                        except Exception as e:
-                            self.logger.error(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED - {e}")
-                            return
-                    
-                    else:
-                        self.logger.error(f"Requirement {i+1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED - Invalid target value.")
+                    except Exception as e:
+                        self.logger.error(
+                            f"Requirement {i + 1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED - {e}")
                         return
 
+                # handle assessment value of type float or int
+                elif is_numeric(target):
+                    try:
+                        # perform the check and log the results
+                        if check_value_params(value, target, tolerance, comparator):
+                            self.logger.info(
+                                f"Requirement {i + 1} of {len(metric['requirements'])} of metric '{metric['metric']}' PASSED.")
+                            continue
+                        else:
+                            self.logger.info(
+                                f"Requirement {i + 1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED.")
+                            continue
 
+                    except Exception as e:
+                        self.logger.error(
+                            f"Requirement {i + 1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED - {e}")
+                        return
+                else:
+                    self.logger.error(
+                        f"Requirement {i + 1} of {len(metric['requirements'])} of metric '{metric['metric']}' FAILED - Invalid target value.")
+                    return
 
     def aggregate_message_counts(self) -> int:
         """
-        Aggregate the number of messages from all assessment objects.
+        Aggregate the total number of messages from all assessment objects.
         :return: int
         """
         return sum(obj.metrics['number_of_messages'] for obj in self.assessment_pool)
-         

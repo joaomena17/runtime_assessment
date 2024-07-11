@@ -5,3 +5,4 @@
 *.pyc
 /src/backup.txt
 /src/__pycache__
+/.idea
