@@ -64,33 +64,25 @@ class RuntimeAssessment:
         log_dir = os.path.join(self.logger_path, f"{self.target_node.split('/')[1]}_{current_date}")
         os.makedirs(log_dir, exist_ok=True)
 
-        # Create general handler that logs all levels
-        all_levels_handler = logging.FileHandler(
-            os.path.join(log_dir, f"{self.target_node.split('/')[1]}_assessment.log"))
+        # Create shared file handler
+        log_file_path = os.path.join(log_dir, f"{self.target_node.split('/')[1]}_assessment.log")
+        self.file_handler = logging.FileHandler(log_file_path)
+        file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        self.file_handler.setFormatter(file_formatter)
+        self.logger.addHandler(self.file_handler)
 
-        all_levels_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        all_levels_handler.setFormatter(all_levels_formatter)
-
-        self.logger.addHandler(all_levels_handler)
-
-        # Create handler for levels INFO and above
-        info_handler = logging.FileHandler(
-            os.path.join(log_dir, f"{self.target_node.split('/')[1]}_assessment_info.log"))
-
+        # INFO and Above Handler
+        info_handler = logging.FileHandler(os.path.join(log_dir, f"{self.target_node.split('/')[1]}_assessment_info.log"))
         info_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         info_handler.setFormatter(info_formatter)
         info_handler.setLevel(logging.INFO)
-
         self.logger.addHandler(info_handler)
 
-        # Create handler for levels ERROR and above
-        error_handler = logging.FileHandler(
-            os.path.join(log_dir, f"{self.target_node.split('/')[1]}_assessment_error.log"))
-
+        # ERROR and Above Handler
+        error_handler = logging.FileHandler(os.path.join(log_dir, f"{self.target_node.split('/')[1]}_assessment_error.log"))
         error_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         error_handler.setFormatter(error_formatter)
         error_handler.setLevel(logging.ERROR)
-
         self.logger.addHandler(error_handler)
 
         self.logger.info(" ------------ RUNTIME ASSESSMENT ------------ ")

@@ -42,13 +42,8 @@ class AssessmentObject:
 
         # Setup logger
         self.logger = logging.getLogger(f"AssessmentObject.{topic_name}")
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-
-        formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
-        console_handler.setFormatter(formatter)
-
-        self.logger.addHandler(console_handler)
+        self.logger.addHandler(runtime_assessment.file_handler)
+        self.logger.setLevel(logging.INFO)
 
         # Assessment variables
         self.start_time = 0
