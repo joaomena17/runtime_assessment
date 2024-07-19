@@ -1,17 +1,10 @@
 #!/usr/bin/env python3
 
-from std_msgs.msg import String
-import rospy
 from turtle_movement.TurtleShape import TurtleShape
 
 class TurtleRectangle(TurtleShape):
     def __init__(self):
         super().__init__()
-        self.checkpoint_publisher = rospy.Publisher("/turtle1/checkpoint", String, queue_size=10)
-
-
-    def pub_checkpoint(self, i):
-        self.checkpoint_publisher.publish(f"reached {i}")
         
     
     def move(self, speed=0.5, length=2): 
