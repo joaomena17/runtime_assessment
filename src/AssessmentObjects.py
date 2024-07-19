@@ -202,122 +202,101 @@ class AssessmentObject:
             if mode == "exists":
                 record_filtered = filter_by_time(self.topic_event_record, timein, timeout)
                 try:
-
                     if not exists_on_record(target, record_filtered, ordered=temporal_consistency,
-                                                 tolerance=tolerance, timein=timein, timeout=timeout):
-                        self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} FAILED.")
+                                            tolerance=tolerance, timein=timein, timeout=timeout):
+                        self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} FAILED. "
+                                         f"Target: {target} not found on the recorded events.")
                         continue
-
                     else:
                         self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} PASSED.")
                         continue
-
                 except ValueError as e:
                     self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - {e}")
                     return
-
                 except Exception as e:
                     self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - {e}")
                     return
-
 
             elif mode == "absent":
                 record_filtered = filter_by_time(self.topic_event_record, timein, timeout)
-
                 try:
                     if exists_on_record(target, record_filtered, ordered=temporal_consistency,
-                                             tolerance=tolerance):
-                        self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} FAILED.")
+                                        tolerance=tolerance):
+                        self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} FAILED. "
+                                         f"Target: {target} was found on the recorded events")
                         continue
-
                     else:
                         self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} PASSED.")
                         continue
-
                 except ValueError as e:
                     self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - {e}")
                     return
-
                 except Exception as e:
                     self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - {e}")
                     return
 
-
             elif mode == "max" or mode == "min" or mode == "average" or mode == "metric":
                 record_filtered = filter_by_time(self.topic_event_record, timein, timeout)
-
                 attr, tgt_val = list(target[0].items())[0]
 
-                # get the value based on the mode
                 if mode == "max":
                     value = get_max(attr, record_filtered)
-
                 elif mode == "min":
                     value = get_min(attr, record_filtered)
-
                 elif mode == "average":
                     value = get_average_value(attr, record_filtered)
-
                 elif mode == "metric":
                     if attr in list(self.metrics.keys()):
                         value = self.metrics[attr]
                     else:
-                        self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - Invalid metric.")
+                        self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - Invalid metric. "
+                                          f"Metric: {attr}")
                         return
 
                 if isinstance(tgt_val, list):
-                    # default values to None
                     min_val = None
                     max_val = None
-
                     for limit in tgt_val:
                         for k, v in limit.items():
                             if not is_numeric(v):
-                                self.logger.error(
-                                    f"Requirement {i + 1} of {len(self.requirements)} FAILED - Invalid target value.")
+                                self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - Invalid target value. "
+                                                  f"Target: {tgt_val}")
                                 return
-
                             if k == "min":
                                 min_val = v
                             elif k == "max":
                                 max_val = v
                             else:
-                                self.logger.error(
-                                    f"Requirement {i + 1} of {len(self.requirements)} FAILED - Invalid target value.")
+                                self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - Invalid target value. "
+                                                  f"Target: {tgt_val}")
                                 return
-
                     try:
-
                         if check_value_params(value, (min_val, max_val), comparator, tolerance):
                             self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} PASSED.")
                             continue
-
                         else:
-                            self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} FAILED.")
+                            self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} FAILED. "
+                                             f"Value: {value}, Target: {tgt_val}, Comparator: {comparator}")
                             continue
-
                     except Exception as e:
                         self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - {e}")
                         return
 
-
                 elif is_numeric(tgt_val):
-
                     try:
                         if check_value_params(value, tgt_val, tolerance, comparator):
                             self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} PASSED.")
                             continue
-
                         else:
-                            self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} FAILED.")
+                            self.logger.info(f"Requirement {i + 1} of {len(self.requirements)} FAILED. "
+                                             f"Value: {value}, Target: {tgt_val}, Comparator: {comparator}")
                             continue
-
                     except Exception as e:
                         self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - {e}")
                         return
-
                 else:
-                    self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - Invalid target value.")
+                    self.logger.error(f"Requirement {i + 1} of {len(self.requirements)} FAILED - Invalid target value. "
+                                      f"Target: {tgt_val}")
                     return
 
         return

@@ -38,7 +38,7 @@ specifications:
 
   - topic: tf
     mode: metric
-    comparator: "<"
+    comparator: "="
     target:
       - number_of_messages: 10
 
@@ -122,6 +122,12 @@ specifications:
       - frequency:
         - min: 55
         - max: 65
+
+  - topic: turtle1/checkpoint
+    timein: 1.0
+    timeout: 5.0
+    target:
+      - data: "reached 5"
 
   - topic: turtle1/checkpoint
     target:
