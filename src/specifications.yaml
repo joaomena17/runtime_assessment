@@ -38,7 +38,7 @@ specifications:
 
   - topic: tf
     mode: metric
-    comparator: "="
+    comparator: "<"
     target:
       - number_of_messages: 10
 
@@ -127,7 +127,7 @@ specifications:
     timein: 1.0
     timeout: 5.0
     target:
-      - data: "reached 5"
+      - data: "reached 1"
 
   - topic: turtle1/checkpoint
     target:
